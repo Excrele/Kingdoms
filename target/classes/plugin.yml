@@ -1,0 +1,15 @@
+name: KingdomsPlugin
+version: 1.0
+main: com.excrele.kingdoms.KingdomsPlugin
+api-version: 1.13
+commands:
+  kingdom:
+    description: Manage kingdoms
+    usage: /<command> <subcommand>
+  levelup:
+    description: Level up your kingdom
+    usage: /<command>
+permissions:
+  kingdoms.admin:
+    description: Allows admin commands
+    default: op
