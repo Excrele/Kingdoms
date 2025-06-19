@@ -60,14 +60,16 @@ public class KingdomsPlugin extends JavaPlugin {
     }
 
     private void initializeManagers() {
-        kingdomManager = new KingdomManager(kingdomsConfig, kingdomsFile);
+        kingdomManager = new KingdomManager(this, kingdomsConfig, kingdomsFile); // Pass plugin instance
         claimManager = new ClaimManager(kingdomManager);
-        flagManager = new FlagManager(this); // Fixed: Pass KingdomsPlugin instance
+        flagManager = new FlagManager(this);
         challengeManager = new ChallengeManager(this);
     }
 
     private void registerCommands() {
-        getCommand("kingdom").setExecutor(new KingdomCommand(this)); // Fixed: Pass KingdomsPlugin
+        KingdomCommand kingdomCommand = new KingdomCommand(this);
+        getCommand("kingdom").setExecutor(kingdomCommand);
+        getCommand("k").setExecutor(kingdomCommand); // Alias
         getCommand("levelup").setExecutor(new LevelUpCommand());
     }
 
@@ -87,7 +89,7 @@ public class KingdomsPlugin extends JavaPlugin {
     public KingdomManager getKingdomManager() { return kingdomManager; }
     public ClaimManager getClaimManager() { return claimManager; }
     public FlagManager getFlagManager() { return flagManager; }
-    public ChallengeManager getChallengeManager() { return challengeManager; }
     public FileConfiguration getKingdomsConfig() { return kingdomsConfig; }
     public File getKingdomsFile() { return kingdomsFile; }
+    public ChallengeManager getChallengeManager() { return challengeManager; }
 }

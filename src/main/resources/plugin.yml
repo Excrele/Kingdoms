@@ -1,11 +1,12 @@
-name: KingdomsPlugin
-version: 1.0
+name: Kingdoms
+version: 1.6
 main: com.excrele.kingdoms.KingdomsPlugin
-api-version: 1.13
+api-version: 1.21
 commands:
   kingdom:
     description: Manage kingdoms
     usage: /<command> <subcommand>
+    aliases: [k]
   levelup:
     description: Level up your kingdom
     usage: /<command>

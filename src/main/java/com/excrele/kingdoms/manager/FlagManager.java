@@ -17,7 +17,7 @@ public class FlagManager {
     public boolean canBuild(Player player, Chunk chunk) {
         Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
         if (kingdom == null) return true; // Unclaimed chunks are buildable
-        Map<String, String> flags = kingdom.getPlotFlags();
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
         String buildFlag = flags.getOrDefault("build", "members");
         return switch (buildFlag) {
             case "king" -> kingdom.getKing().equals(player.getName());
@@ -29,7 +29,7 @@ public class FlagManager {
     public boolean canBreak(Player player, Chunk chunk) {
         Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
         if (kingdom == null) return true;
-        Map<String, String> flags = kingdom.getPlotFlags();
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
         String breakFlag = flags.getOrDefault("break", "members");
         return switch (breakFlag) {
             case "king" -> kingdom.getKing().equals(player.getName());
@@ -44,13 +44,13 @@ public class FlagManager {
             player.sendMessage("You cannot set flags here!");
             return;
         }
-        Map<String, String> flags = kingdom.getPlotFlags();
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
         flags.put(flag, value);
         plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
-        player.sendMessage("Flag " + flag + " set to " + value + "!");
+        player.sendMessage("Flag " + flag + " set to " + value + " for chunk!");
     }
 
     public void setPlotFlag(Player player, String flag, String value, Chunk chunk) {
-        setFlag(player, flag, value, chunk); // Delegate to setFlag for consistency
+        setFlag(player, flag, value, chunk); // Delegate to setFlag
     }
 }

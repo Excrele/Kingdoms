@@ -7,6 +7,7 @@ import com.excrele.kingdoms.gui.KingdomManagementGUI;
 import com.excrele.kingdoms.model.Challenge;
 import com.excrele.kingdoms.model.Kingdom;
 import org.bukkit.Chunk;
+import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -25,37 +26,55 @@ public class KingdomCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        if (!cmd.getName().equalsIgnoreCase("kingdom")) return false;
+        if (!cmd.getName().equalsIgnoreCase("kingdom") && !cmd.getName().equalsIgnoreCase("k")) return false;
         if (args.length == 0) {
-            sender.sendMessage("Usage: /kingdom <subcommand>");
+            sender.sendMessage("Usage: /" + label + " <subcommand>");
             return true;
         }
 
         String subcommand = args[0].toLowerCase();
         switch (subcommand) {
             case "create":
-                if (args.length < 2) {
-                    sender.sendMessage("Usage: /kingdom create <name>");
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can create kingdoms!");
                     return true;
                 }
+                if (args.length < 2) {
+                    sender.sendMessage("Usage: /" + label + " create <name>");
+                    return true;
+                }
+                Player createPlayer = (Player) sender;
                 String kingdomName = args[1];
                 if (plugin.getKingdomManager().getKingdom(kingdomName) != null) {
                     sender.sendMessage("Kingdom already exists!");
                     return true;
                 }
-                Kingdom newKingdom = new Kingdom(kingdomName, sender.getName());
+                Kingdom newKingdom = new Kingdom(kingdomName, createPlayer.getName());
                 plugin.getKingdomManager().addKingdom(newKingdom);
-                plugin.getKingdomManager().setPlayerKingdom(sender.getName(), kingdomName);
+                plugin.getKingdomManager().setPlayerKingdom(createPlayer.getName(), kingdomName);
+
+                // Auto-claim current chunk and set spawn
+                Chunk initialChunk = createPlayer.getLocation().getChunk();
+                if (plugin.getClaimManager().claimChunk(newKingdom, initialChunk)) {
+                    newKingdom.getClaims().get(0).add(initialChunk); // Add to first tier
+                    plugin.getKingdomManager().claimChunk(newKingdom, initialChunk, newKingdom.getClaims().get(0));
+                    // Set default spawn to chunk center
+                    double x = (initialChunk.getX() << 4) + 8.5;
+                    double z = (initialChunk.getZ() << 4) + 8.5;
+                    double y = initialChunk.getWorld().getHighestBlockYAt((int) x, (int) z) + 1;
+                    newKingdom.setSpawn(new Location(initialChunk.getWorld(), x, y, z, 0, 0));
+                    createPlayer.sendMessage("Chunk claimed and spawn set!");
+                } else {
+                    createPlayer.sendMessage("Cannot claim this chunk!");
+                }
+
                 sender.sendMessage("Kingdom created: " + kingdomName);
-                plugin.getKingdomManager().saveKingdoms(
-                        plugin.getKingdomsConfig(),
-                        plugin.getKingdomsFile()
-                );
+                plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 return true;
 
             case "invite":
                 if (args.length < 2) {
-                    sender.sendMessage("Usage: /kingdom invite <player>");
+                    sender.sendMessage("Usage: /" + label + " invite <player>");
                     return true;
                 }
                 String invitedPlayer = args[1];
@@ -88,10 +107,7 @@ public class KingdomCommand implements CommandExecutor {
                 plugin.getKingdomManager().setPlayerKingdom(sender.getName(), inviteKingdom);
                 pendingInvites.remove(sender.getName());
                 sender.sendMessage("Joined kingdom: " + inviteKingdom);
-                plugin.getKingdomManager().saveKingdoms(
-                        plugin.getKingdomsConfig(),
-                        plugin.getKingdomsFile()
-                );
+                plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 return true;
 
             case "leave":
@@ -102,16 +118,13 @@ public class KingdomCommand implements CommandExecutor {
                 }
                 Kingdom leaveKingdom = plugin.getKingdomManager().getKingdom(playerKingdom);
                 if (leaveKingdom.getKing().equals(sender.getName())) {
-                    sender.sendMessage("The king cannot leave! Use /kingdom admin dissolve instead.");
+                    sender.sendMessage("The king cannot leave! Use /" + label + " admin dissolve instead.");
                     return true;
                 }
                 leaveKingdom.getMembers().remove(sender.getName());
                 plugin.getKingdomManager().removePlayerKingdom(sender.getName());
                 sender.sendMessage("You have left " + playerKingdom);
-                plugin.getKingdomManager().saveKingdoms(
-                        plugin.getKingdomsConfig(),
-                        plugin.getKingdomsFile()
-                );
+                plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 return true;
 
             case "claim":
@@ -129,10 +142,7 @@ public class KingdomCommand implements CommandExecutor {
                 Chunk claimChunk = claimPlayer.getLocation().getChunk();
                 if (plugin.getClaimManager().claimChunk(claimKingdom, claimChunk)) {
                     claimPlayer.sendMessage("Chunk claimed!");
-                    plugin.getKingdomManager().saveKingdoms(
-                            plugin.getKingdomsConfig(),
-                            plugin.getKingdomsFile()
-                    );
+                    plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 } else {
                     claimPlayer.sendMessage("Cannot claim this chunk!");
                 }
@@ -157,10 +167,7 @@ public class KingdomCommand implements CommandExecutor {
                 Chunk unclaimChunk = unclaimPlayer.getLocation().getChunk();
                 if (plugin.getClaimManager().unclaimChunk(unclaimKingdom, unclaimChunk)) {
                     unclaimPlayer.sendMessage("Chunk unclaimed!");
-                    plugin.getKingdomManager().saveKingdoms(
-                            plugin.getKingdomsConfig(),
-                            plugin.getKingdomsFile()
-                    );
+                    plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 } else {
                     unclaimPlayer.sendMessage("Cannot unclaim this chunk!");
                 }
@@ -172,7 +179,7 @@ public class KingdomCommand implements CommandExecutor {
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage("Usage: /kingdom setplot <type>");
+                    sender.sendMessage("Usage: /" + label + " setplot <type>");
                     return true;
                 }
                 Player setplotPlayer = (Player) sender;
@@ -190,15 +197,12 @@ public class KingdomCommand implements CommandExecutor {
                 String plotType = args[1];
                 setplotKingdom.setPlotType(plotChunk, plotType);
                 setplotPlayer.sendMessage("Plot type set to " + plotType);
-                plugin.getKingdomManager().saveKingdoms(
-                        plugin.getKingdomsConfig(),
-                        plugin.getKingdomsFile()
-                );
+                plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 return true;
 
             case "flag":
                 if (args.length < 3) {
-                    sender.sendMessage("Usage: /kingdom flag <flag> <value>");
+                    sender.sendMessage("Usage: /" + label + " flag <flag> <value>");
                     return true;
                 }
                 String flagKingdomName = plugin.getKingdomManager().getKingdomOfPlayer(sender.getName());
@@ -211,14 +215,7 @@ public class KingdomCommand implements CommandExecutor {
                     sender.sendMessage("Only the king can set kingdom flags!");
                     return true;
                 }
-                String flag = args[1];
-                String value = args[2];
-                flagKingdom.getFlags().put(flag, value);
-                sender.sendMessage("Set kingdom flag " + flag + " to " + value);
-                plugin.getKingdomManager().saveKingdoms(
-                        plugin.getKingdomsConfig(),
-                        plugin.getKingdomsFile()
-                );
+                sender.sendMessage("Kingdom-wide flags are deprecated. Use /" + label + " plotflag instead.");
                 return true;
 
             case "plotflag":
@@ -227,7 +224,7 @@ public class KingdomCommand implements CommandExecutor {
                     return true;
                 }
                 if (args.length < 3) {
-                    sender.sendMessage("Usage: /kingdom plotflag <flag> <value>");
+                    sender.sendMessage("Usage: /" + label + " plotflag <flag> <value>");
                     return true;
                 }
                 Player plotflagPlayer = (Player) sender;
@@ -246,10 +243,54 @@ public class KingdomCommand implements CommandExecutor {
                 String plotValue = args[2];
                 plugin.getFlagManager().setPlotFlag(plotflagPlayer, plotFlag, plotValue, flagChunk);
                 plotflagPlayer.sendMessage("Set plot flag " + plotFlag + " to " + plotValue);
-                plugin.getKingdomManager().saveKingdoms(
-                        plugin.getKingdomsConfig(),
-                        plugin.getKingdomsFile()
-                );
+                plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
+                return true;
+
+            case "setspawn":
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can set kingdom spawn!");
+                    return true;
+                }
+                Player setspawnPlayer = (Player) sender;
+                String setspawnKingdomName = plugin.getKingdomManager().getKingdomOfPlayer(setspawnPlayer.getName());
+                if (setspawnKingdomName == null) {
+                    setspawnPlayer.sendMessage("You are not in a kingdom!");
+                    return true;
+                }
+                Kingdom setspawnKingdom = plugin.getKingdomManager().getKingdom(setspawnKingdomName);
+                if (!setspawnKingdom.getKing().equals(setspawnPlayer.getName())) {
+                    setspawnPlayer.sendMessage("Only the king can set the spawn!");
+                    return true;
+                }
+                Chunk spawnChunk = setspawnPlayer.getLocation().getChunk();
+                if (plugin.getKingdomManager().getKingdomByChunk(spawnChunk) != setspawnKingdom) {
+                    setspawnPlayer.sendMessage("You must be in a claimed chunk!");
+                    return true;
+                }
+                setspawnKingdom.setSpawn(setspawnPlayer.getLocation());
+                setspawnPlayer.sendMessage("Kingdom spawn set!");
+                plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
+                return true;
+
+            case "spawn":
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can teleport to kingdom spawn!");
+                    return true;
+                }
+                Player spawnPlayer = (Player) sender;
+                String spawnKingdomName = plugin.getKingdomManager().getKingdomOfPlayer(spawnPlayer.getName());
+                if (spawnKingdomName == null) {
+                    spawnPlayer.sendMessage("You are not in a kingdom!");
+                    return true;
+                }
+                Kingdom spawnKingdom = plugin.getKingdomManager().getKingdom(spawnKingdomName);
+                Location spawn = spawnKingdom.getSpawn();
+                if (spawn == null) {
+                    spawnPlayer.sendMessage("No spawn set for this kingdom!");
+                    return true;
+                }
+                spawnPlayer.teleport(spawn);
+                spawnPlayer.sendMessage("Teleported to kingdom spawn!");
                 return true;
 
             case "challenges":
@@ -304,7 +345,7 @@ public class KingdomCommand implements CommandExecutor {
 
             case "admin":
                 if (args.length < 2) {
-                    sender.sendMessage("Usage: /kingdom admin <list|dissolve|forceunclaim|setflag>");
+                    sender.sendMessage("Usage: /" + label + " admin <list|dissolve|forceunclaim|setflag>");
                     return true;
                 }
                 if (!sender.hasPermission("kingdoms.admin")) {
@@ -318,7 +359,7 @@ public class KingdomCommand implements CommandExecutor {
                         return true;
                     case "dissolve":
                         if (args.length < 3) {
-                            sender.sendMessage("Usage: /kingdom admin dissolve <kingdom>");
+                            sender.sendMessage("Usage: /" + label + " admin dissolve <kingdom>");
                             return true;
                         }
                         String dissolveKingdom = args[2];
@@ -329,14 +370,11 @@ public class KingdomCommand implements CommandExecutor {
                         }
                         plugin.getKingdomManager().dissolveKingdom(dissolveKingdom);
                         sender.sendMessage("Kingdom " + dissolveKingdom + " dissolved!");
-                        plugin.getKingdomManager().saveKingdoms(
-                                plugin.getKingdomsConfig(),
-                                plugin.getKingdomsFile()
-                        );
+                        plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                         return true;
                     case "forceunclaim":
                         if (args.length < 4) {
-                            sender.sendMessage("Usage: /kingdom admin forceunclaim <kingdom> <world:x:z>");
+                            sender.sendMessage("Usage: /" + label + " admin forceunclaim <kingdom> <world:x:z>");
                             return true;
                         }
                         String forceKingdomName = args[2];
@@ -349,17 +387,14 @@ public class KingdomCommand implements CommandExecutor {
                         Chunk forceChunk = plugin.getServer().getWorld(coords[0]).getChunkAt(Integer.parseInt(coords[1]), Integer.parseInt(coords[2]));
                         if (plugin.getClaimManager().unclaimChunk(forceKingdom, forceChunk)) {
                             sender.sendMessage("Chunk force unclaimed!");
-                            plugin.getKingdomManager().saveKingdoms(
-                                    plugin.getKingdomsConfig(),
-                                    plugin.getKingdomsFile()
-                            );
+                            plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                         } else {
                             sender.sendMessage("Failed to unclaim chunk!");
                         }
                         return true;
                     case "setflag":
                         if (args.length < 5) {
-                            sender.sendMessage("Usage: /kingdom admin setflag <kingdom> <flag> <value>");
+                            sender.sendMessage("Usage: /" + label + " admin setflag <kingdom> <flag> <value>");
                             return true;
                         }
                         String adminFlagKingdomName = args[2];
@@ -368,14 +403,7 @@ public class KingdomCommand implements CommandExecutor {
                             sender.sendMessage("Kingdom not found!");
                             return true;
                         }
-                        String adminFlag = args[3];
-                        String adminValue = args[4];
-                        adminFlagKingdom.getFlags().put(adminFlag, adminValue);
-                        sender.sendMessage("Set flag " + adminFlag + " to " + adminValue + " for " + adminFlagKingdomName);
-                        plugin.getKingdomManager().saveKingdoms(
-                                plugin.getKingdomsConfig(),
-                                plugin.getKingdomsFile()
-                        );
+                        sender.sendMessage("Kingdom-wide flags are deprecated. Use per-chunk flags instead.");
                         return true;
                 }
                 return true;
