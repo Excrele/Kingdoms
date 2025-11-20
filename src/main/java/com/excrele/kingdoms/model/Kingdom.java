@@ -1,9 +1,12 @@
 package com.excrele.kingdoms.model;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.bukkit.Chunk;
 import org.bukkit.Location;
-
-import java.util.*;
 
 public class Kingdom {
     private String name;
@@ -16,6 +19,11 @@ public class Kingdom {
     private int xp;
     private int level;
     private Location spawn; // Kingdom spawn location
+    private Map<String, Integer> memberContributions; // Track XP contributions per member
+    private Map<String, MemberRole> memberRoles; // Track roles for each member
+    private List<String> alliances; // List of allied kingdom names
+    private long createdAt; // Kingdom creation timestamp
+    private int totalChallengesCompleted; // Total challenges completed by all members
 
     public Kingdom(String name, String king) {
         this.name = name;
@@ -29,6 +37,12 @@ public class Kingdom {
         this.xp = 0;
         this.level = 1;
         this.spawn = null; // Set later during chunk claim
+        this.memberContributions = new HashMap<>();
+        this.memberRoles = new HashMap<>();
+        this.memberRoles.put(king, MemberRole.KING); // King always has KING role
+        this.alliances = new ArrayList<>();
+        this.createdAt = System.currentTimeMillis() / 1000;
+        this.totalChallengesCompleted = 0;
     }
 
     public String getName() { return name; }
@@ -52,4 +66,52 @@ public class Kingdom {
     public int getMaxClaimChunks() { return 10 + 5 * level; }
     public Location getSpawn() { return spawn; }
     public void setSpawn(Location spawn) { this.spawn = spawn; }
+    public Map<String, Integer> getMemberContributions() { return memberContributions; }
+    public void addContribution(String player, int amount) {
+        memberContributions.put(player, memberContributions.getOrDefault(player, 0) + amount);
+    }
+    public int getContribution(String player) {
+        return memberContributions.getOrDefault(player, 0);
+    }
+    public long getCreatedAt() { return createdAt; }
+    public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+    public int getTotalChallengesCompleted() { return totalChallengesCompleted; }
+    public void incrementChallengesCompleted() { this.totalChallengesCompleted++; }
+    public void setTotalChallengesCompleted(int count) { this.totalChallengesCompleted = count; }
+    public Map<String, MemberRole> getMemberRoles() { return memberRoles; }
+    public MemberRole getRole(String player) {
+        if (player.equals(king)) return MemberRole.KING;
+        return memberRoles.getOrDefault(player, MemberRole.MEMBER);
+    }
+    public void setRole(String player, MemberRole role) {
+        if (player.equals(king) && role != MemberRole.KING) return; // Can't change king's role
+        memberRoles.put(player, role);
+    }
+    public boolean hasPermission(String player, String permission) {
+        MemberRole role = getRole(player);
+        return switch (permission) {
+            case "invite" -> role.canInvite();
+            case "claim" -> role.canClaim();
+            case "unclaim" -> role.canUnclaim();
+            case "setflags" -> role.canSetFlags();
+            case "setplotflags" -> role.canSetPlotFlags();
+            case "setplottype" -> role.canSetPlotType();
+            case "levelup" -> role.canLevelUp();
+            case "kick" -> role.canKick();
+            case "promote" -> role.canPromote();
+            default -> false;
+        };
+    }
+    public List<String> getAlliances() { return alliances; }
+    public void addAlliance(String kingdomName) {
+        if (!alliances.contains(kingdomName)) {
+            alliances.add(kingdomName);
+        }
+    }
+    public void removeAlliance(String kingdomName) {
+        alliances.remove(kingdomName);
+    }
+    public boolean isAllied(String kingdomName) {
+        return alliances.contains(kingdomName);
+    }
 }

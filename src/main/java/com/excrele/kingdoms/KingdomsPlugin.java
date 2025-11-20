@@ -1,5 +1,12 @@
 package com.excrele.kingdoms;
 
+import java.io.File;
+import java.io.IOException;
+
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import com.excrele.kingdoms.command.KingdomCommand;
 import com.excrele.kingdoms.command.LevelUpCommand;
 import com.excrele.kingdoms.listener.BlockBreakListener;
@@ -12,12 +19,6 @@ import com.excrele.kingdoms.manager.ClaimManager;
 import com.excrele.kingdoms.manager.FlagManager;
 import com.excrele.kingdoms.manager.KingdomManager;
 import com.excrele.kingdoms.task.PerkTask;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
-
-import java.io.File;
-import java.io.IOException;
 
 public class KingdomsPlugin extends JavaPlugin {
     private static KingdomsPlugin instance;
@@ -68,9 +69,22 @@ public class KingdomsPlugin extends JavaPlugin {
 
     private void registerCommands() {
         KingdomCommand kingdomCommand = new KingdomCommand(this);
-        getCommand("kingdom").setExecutor(kingdomCommand);
-        getCommand("k").setExecutor(kingdomCommand); // Alias
-        getCommand("levelup").setExecutor(new LevelUpCommand());
+        org.bukkit.command.PluginCommand kingdomCmd = getCommand("kingdom");
+        if (kingdomCmd != null) {
+            kingdomCmd.setExecutor(kingdomCommand);
+        }
+        org.bukkit.command.PluginCommand kCmd = getCommand("k");
+        if (kCmd != null) {
+            kCmd.setExecutor(kingdomCommand); // Alias
+        }
+        org.bukkit.command.PluginCommand kcCmd = getCommand("kc");
+        if (kcCmd != null) {
+            kcCmd.setExecutor(new com.excrele.kingdoms.command.KingdomChatCommand());
+        }
+        org.bukkit.command.PluginCommand levelUpCmd = getCommand("levelup");
+        if (levelUpCmd != null) {
+            levelUpCmd.setExecutor(new LevelUpCommand());
+        }
     }
 
     private void registerListeners() {
@@ -79,6 +93,8 @@ public class KingdomsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CraftItemListener(), this);
         getServer().getPluginManager().registerEvents(new PlayerMoveListener(), this);
         getServer().getPluginManager().registerEvents(new InventoryClickListener(), this);
+        getServer().getPluginManager().registerEvents(new com.excrele.kingdoms.listener.KingdomChatListener(), this);
+        getServer().getPluginManager().registerEvents(new com.excrele.kingdoms.listener.ClaimProtectionListener(), this);
     }
 
     private void startTasks() {

@@ -7,6 +7,10 @@ commands:
     description: Manage kingdoms
     usage: /<command> <subcommand>
     aliases: [k]
+  kc:
+    description: Kingdom chat
+    usage: /<command> <message>
+    aliases: [kingdomchat]
   levelup:
     description: Level up your kingdom
     usage: /<command>

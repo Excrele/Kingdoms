@@ -1,11 +1,12 @@
 package com.excrele.kingdoms.command;
 
-import com.excrele.kingdoms.KingdomsPlugin;
-import com.excrele.kingdoms.model.Kingdom;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import com.excrele.kingdoms.KingdomsPlugin;
+import com.excrele.kingdoms.model.Kingdom;
 
 public class LevelUpCommand implements CommandExecutor {
     @Override
@@ -25,7 +26,7 @@ public class LevelUpCommand implements CommandExecutor {
             player.sendMessage("Kingdom not found!");
             return true;
         }
-        if (!kingdom.getKing().equals(player.getName())) {
+        if (!kingdom.hasPermission(player.getName(), "levelup")) {
             player.sendMessage("Only the king can level up the kingdom!");
             return true;
         }

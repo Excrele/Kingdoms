@@ -1,9 +1,10 @@
 package com.excrele.kingdoms.gui;
 
-import com.excrele.kingdoms.KingdomsPlugin;
-import com.excrele.kingdoms.model.Kingdom;
 import org.bukkit.Chunk;
 import org.bukkit.entity.Player;
+
+import com.excrele.kingdoms.KingdomsPlugin;
+import com.excrele.kingdoms.model.Kingdom;
 
 public class ClaimMapGenerator {
     public static String generateClaimMap(Player player) {
@@ -22,7 +23,12 @@ public class ClaimMapGenerator {
                     if (kingdom.getName().equals(kingdomName)) {
                         map.append("§a[K]"); // Own kingdom
                     } else {
-                        map.append("§c[E]"); // Enemy kingdom
+                        Kingdom playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(kingdomName);
+                        if (playerKingdom != null && playerKingdom.isAllied(kingdom.getName())) {
+                            map.append("§b[A]"); // Allied kingdom
+                        } else {
+                            map.append("§c[E]"); // Enemy kingdom
+                        }
                     }
                 } else {
                     map.append("§7[-]"); // Unclaimed
@@ -30,7 +36,7 @@ public class ClaimMapGenerator {
             }
             map.append("\n");
         }
-        map.append("§a[K] Your Kingdom, §c[E] Enemy Kingdom, §7[-] Unclaimed, §b[P] Your Position");
+        map.append("§a[K] Your Kingdom, §b[A] Allied Kingdom, §c[E] Enemy Kingdom, §7[-] Unclaimed, §b[P] Your Position");
         return map.toString();
     }
 }

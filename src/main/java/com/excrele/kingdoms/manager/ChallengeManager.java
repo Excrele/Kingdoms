@@ -1,16 +1,20 @@
 package com.excrele.kingdoms.manager;
 
-import com.excrele.kingdoms.KingdomsPlugin;
-import com.excrele.kingdoms.model.Challenge;
-import com.excrele.kingdoms.model.Kingdom;
-import com.excrele.kingdoms.model.PlayerChallengeData;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
+import com.excrele.kingdoms.KingdomsPlugin;
+import com.excrele.kingdoms.model.Challenge;
+import com.excrele.kingdoms.model.Kingdom;
+import com.excrele.kingdoms.model.PlayerChallengeData;
 
 public class ChallengeManager {
     private List<Challenge> challenges;
@@ -107,10 +111,14 @@ public class ChallengeManager {
             playerData.computeIfAbsent(player.getName(), k -> new HashMap<>()).put(challenge.getId(), data);
         }
         int requiredAmount = (int) challenge.getTask().get("amount");
+        int previousProgress = data.getProgress();
         data.incrementProgress(amount);
         if (data.getProgress() >= requiredAmount) {
             completeChallenge(player, challenge);
             data.setProgress(0); // Reset progress after completion
+        } else if (previousProgress != data.getProgress()) {
+            // Only show progress message if progress actually changed and challenge not completed
+            player.sendMessage("Progress: " + data.getProgress() + "/" + requiredAmount + " for " + challenge.getDescription());
         }
         savePlayerData();
     }
@@ -120,7 +128,10 @@ public class ChallengeManager {
         if (kingdomName == null) return;
         Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(kingdomName);
         if (kingdom == null) return;
-        kingdom.addXp(challenge.getXpReward());
+        int xpReward = challenge.getXpReward();
+        kingdom.addXp(xpReward);
+        kingdom.addContribution(player.getName(), xpReward); // Track individual contribution
+        kingdom.incrementChallengesCompleted(); // Track total challenges
         PlayerChallengeData data = getPlayerChallengeData(player, challenge);
         if (data == null) {
             data = new PlayerChallengeData();
@@ -128,6 +139,7 @@ public class ChallengeManager {
         }
         data.setTimesCompleted(data.getTimesCompleted() + 1);
         data.setLastCompleted(System.currentTimeMillis() / 1000);
+        player.sendMessage("§aChallenge completed: " + challenge.getDescription() + "! +" + xpReward + " XP");
         savePlayerData();
         KingdomsPlugin.getInstance().getKingdomManager().saveKingdoms(
                 KingdomsPlugin.getInstance().getKingdomsConfig(),

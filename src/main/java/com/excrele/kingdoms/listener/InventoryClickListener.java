@@ -1,21 +1,18 @@
 package com.excrele.kingdoms.listener;
 
-import com.excrele.kingdoms.KingdomsPlugin;
-import com.excrele.kingdoms.gui.ChallengeGUI;
-import com.excrele.kingdoms.gui.KingdomManagementGUI;
-import com.excrele.kingdoms.model.Kingdom;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.Inventory;
+
+import com.excrele.kingdoms.KingdomsPlugin;
+import com.excrele.kingdoms.model.Kingdom;
 
 public class InventoryClickListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         Player player = (Player) event.getWhoClicked();
-        Inventory inventory = event.getInventory();
         String title = event.getView().getTitle();
 
         if (title.equals("Kingdom Challenges")) {
@@ -49,6 +46,10 @@ public class InventoryClickListener implements Listener {
                     break;
                 case 16: // XP and Level (No action)
                     player.sendMessage("Kingdom Level: " + kingdom.getLevel() + ", XP: " + kingdom.getXp());
+                    break;
+                case 22: // Contributions
+                    player.closeInventory();
+                    player.performCommand("kingdom contributions");
                     break;
             }
         }
