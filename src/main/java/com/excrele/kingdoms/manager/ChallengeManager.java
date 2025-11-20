@@ -117,8 +117,19 @@ public class ChallengeManager {
             completeChallenge(player, challenge);
             data.setProgress(0); // Reset progress after completion
         } else if (previousProgress != data.getProgress()) {
-            // Only show progress message if progress actually changed and challenge not completed
-            player.sendMessage("Progress: " + data.getProgress() + "/" + requiredAmount + " for " + challenge.getDescription());
+            // Update action bar with progress
+            com.excrele.kingdoms.util.ActionBarManager.sendChallengeProgress(
+                player, 
+                challenge.getDescription(), 
+                data.getProgress(), 
+                requiredAmount
+            );
+            // Only show chat message every 25% progress to avoid spam
+            int progressPercent = (data.getProgress() * 100) / requiredAmount;
+            int prevProgressPercent = (previousProgress * 100) / requiredAmount;
+            if (progressPercent % 25 == 0 && prevProgressPercent < progressPercent) {
+                player.sendMessage("§7Progress: §e" + data.getProgress() + "§7/§e" + requiredAmount + " §7(" + progressPercent + "%) for §6" + challenge.getDescription());
+            }
         }
         savePlayerData();
     }
@@ -139,6 +150,13 @@ public class ChallengeManager {
         }
         data.setTimesCompleted(data.getTimesCompleted() + 1);
         data.setLastCompleted(System.currentTimeMillis() / 1000);
+        
+        // Visual effects
+        com.excrele.kingdoms.util.VisualEffects.playChallengeCompleteEffects(player);
+        
+        // Action bar notification
+        com.excrele.kingdoms.util.ActionBarManager.sendChallengeComplete(player, challenge.getDescription(), xpReward);
+        
         player.sendMessage("§aChallenge completed: " + challenge.getDescription() + "! +" + xpReward + " XP");
         savePlayerData();
         KingdomsPlugin.getInstance().getKingdomManager().saveKingdoms(

@@ -9,7 +9,6 @@ import org.bukkit.event.block.BlockBreakEvent;
 
 import com.excrele.kingdoms.KingdomsPlugin;
 import com.excrele.kingdoms.model.Challenge;
-import com.excrele.kingdoms.model.PlayerChallengeData;
 
 public class BlockBreakListener implements Listener {
     @EventHandler
@@ -22,10 +21,7 @@ public class BlockBreakListener implements Listener {
             String requiredBlock = (String) challenge.getTask().get("block");
             if (event.getBlock().getType().toString().equalsIgnoreCase(requiredBlock)) {
                 KingdomsPlugin.getInstance().getChallengeManager().updateChallengeProgress(player, challenge, 1);
-                PlayerChallengeData data = KingdomsPlugin.getInstance().getChallengeManager().getPlayerChallengeData(player, challenge);
-                if (data != null && data.getProgress() > 0) {
-                    player.sendMessage("Progress: " + data.getProgress() + "/" + challenge.getTask().get("amount") + " for " + challenge.getDescription());
-                }
+                // Progress message is already sent by ChallengeManager.updateChallengeProgress
             }
         }
     }

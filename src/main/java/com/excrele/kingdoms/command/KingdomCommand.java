@@ -148,11 +148,37 @@ public class KingdomCommand implements CommandExecutor {
                     return true;
                 }
                 Chunk claimChunk = claimPlayer.getLocation().getChunk();
+                
+                // Check economy cost
+                double claimCost = plugin.getConfig().getDouble("economy.claim_cost", 0.0);
+                boolean economyEnabled = plugin.getConfig().getBoolean("economy.enabled", false);
+                if (economyEnabled && claimCost > 0 && com.excrele.kingdoms.util.EconomyManager.isEnabled()) {
+                    if (!com.excrele.kingdoms.util.EconomyManager.hasEnough(claimPlayer, claimCost)) {
+                        claimPlayer.sendMessage("§cYou don't have enough money! Cost: " + 
+                            com.excrele.kingdoms.util.EconomyManager.format(claimCost));
+                        return true;
+                    }
+                }
+                
                 if (plugin.getClaimManager().claimChunk(claimKingdom, claimChunk)) {
-                    claimPlayer.sendMessage("Chunk claimed!");
+                    // Charge economy cost
+                    if (economyEnabled && claimCost > 0 && com.excrele.kingdoms.util.EconomyManager.isEnabled()) {
+                        com.excrele.kingdoms.util.EconomyManager.withdraw(claimPlayer, claimCost);
+                        claimPlayer.sendMessage("§7Paid §e" + com.excrele.kingdoms.util.EconomyManager.format(claimCost) + " §7to claim this chunk.");
+                    }
+                    
+                    // Visual effects
+                    org.bukkit.Location chunkCenter = claimChunk.getBlock(8, claimPlayer.getLocation().getBlockY(), 8).getLocation();
+                    com.excrele.kingdoms.util.VisualEffects.playClaimEffects(claimPlayer, chunkCenter);
+                    
+                    // Action bar notification
+                    com.excrele.kingdoms.util.ActionBarManager.sendClaimNotification(claimPlayer, 
+                        "Chunk claimed! (" + claimKingdom.getCurrentClaimChunks() + "/" + claimKingdom.getMaxClaimChunks() + ")");
+                    
+                    claimPlayer.sendMessage("§aChunk claimed!");
                     plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 } else {
-                    claimPlayer.sendMessage("Cannot claim this chunk!");
+                    claimPlayer.sendMessage("§cCannot claim this chunk!");
                 }
                 return true;
 
@@ -174,10 +200,26 @@ public class KingdomCommand implements CommandExecutor {
                 }
                 Chunk unclaimChunk = unclaimPlayer.getLocation().getChunk();
                 if (plugin.getClaimManager().unclaimChunk(unclaimKingdom, unclaimChunk)) {
-                    unclaimPlayer.sendMessage("Chunk unclaimed!");
+                    // Refund economy cost
+                    double refundAmount = plugin.getConfig().getDouble("economy.unclaim_refund", 0.0);
+                    boolean unclaimEconomyEnabled = plugin.getConfig().getBoolean("economy.enabled", false);
+                    if (unclaimEconomyEnabled && refundAmount > 0 && com.excrele.kingdoms.util.EconomyManager.isEnabled()) {
+                        com.excrele.kingdoms.util.EconomyManager.deposit(unclaimPlayer, refundAmount);
+                        unclaimPlayer.sendMessage("§aRefunded §e" + com.excrele.kingdoms.util.EconomyManager.format(refundAmount) + " §afor unclaiming this chunk.");
+                    }
+                    
+                    // Visual effects
+                    org.bukkit.Location chunkCenter = unclaimChunk.getBlock(8, unclaimPlayer.getLocation().getBlockY(), 8).getLocation();
+                    com.excrele.kingdoms.util.VisualEffects.playUnclaimEffects(unclaimPlayer, chunkCenter);
+                    
+                    // Action bar notification
+                    com.excrele.kingdoms.util.ActionBarManager.sendClaimNotification(unclaimPlayer, 
+                        "Chunk unclaimed! (" + unclaimKingdom.getCurrentClaimChunks() + "/" + unclaimKingdom.getMaxClaimChunks() + ")");
+                    
+                    unclaimPlayer.sendMessage("§cChunk unclaimed!");
                     plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
                 } else {
-                    unclaimPlayer.sendMessage("Cannot unclaim this chunk!");
+                    unclaimPlayer.sendMessage("§cCannot unclaim this chunk!");
                 }
                 return true;
 
@@ -356,7 +398,13 @@ public class KingdomCommand implements CommandExecutor {
                     mapPlayer.sendMessage("You must be in a kingdom to view the claim map!");
                     return true;
                 }
-                mapPlayer.sendMessage(ClaimMapGenerator.generateClaimMap(mapPlayer));
+                // Check if they want GUI or text version
+                if (args.length > 1 && args[1].equalsIgnoreCase("gui")) {
+                    com.excrele.kingdoms.gui.ClaimMapGUI.openClaimMapGUI(mapPlayer);
+                } else {
+                    mapPlayer.sendMessage(ClaimMapGenerator.generateClaimMap(mapPlayer));
+                    mapPlayer.sendMessage("§7Tip: Use §e/kingdom map gui §7for an interactive map!");
+                }
                 return true;
 
             case "contributions":
@@ -680,9 +728,20 @@ public class KingdomCommand implements CommandExecutor {
                         if (requestingK != null) {
                             requestingK.addAlliance(allianceAccepterKingdom);
                             pendingAllianceRequests.remove(allianceAccepterKingdom);
+                            
+                            // Visual effects
+                            com.excrele.kingdoms.util.VisualEffects.playAllianceEffects(allianceAccepter);
+                            
+                            // Action bar notification
+                            com.excrele.kingdoms.util.ActionBarManager.sendNotification(allianceAccepter, 
+                                "§a§l✓ Alliance formed with " + requestingKingdom + "!");
+                            
                             allianceAccepter.sendMessage("§aAlliance formed with " + requestingKingdom + "!");
                             Player requestingKing = plugin.getServer().getPlayer(requestingK.getKing());
                             if (requestingKing != null && requestingKing.isOnline()) {
+                                com.excrele.kingdoms.util.VisualEffects.playAllianceEffects(requestingKing);
+                                com.excrele.kingdoms.util.ActionBarManager.sendNotification(requestingKing, 
+                                    "§a§l✓ " + allianceAccepterKingdom + " accepted your alliance request!");
                                 requestingKing.sendMessage("§a" + allianceAccepterKingdom + " accepted your alliance request!");
                             }
                         } else {

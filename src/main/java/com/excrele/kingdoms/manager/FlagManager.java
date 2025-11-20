@@ -40,8 +40,13 @@ public class FlagManager {
 
     public void setFlag(Player player, String flag, String value, Chunk chunk) {
         Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
-        if (kingdom == null || !kingdom.getKing().equals(player.getName())) {
+        if (kingdom == null) {
             player.sendMessage("You cannot set flags here!");
+            return;
+        }
+        // Check if player has permission to set plot flags (already checked in command, but double-check here)
+        if (!kingdom.hasPermission(player.getName(), "setplotflags")) {
+            player.sendMessage("You don't have permission to set plot flags!");
             return;
         }
         Map<String, String> flags = kingdom.getPlotFlags(chunk);

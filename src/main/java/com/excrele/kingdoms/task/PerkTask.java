@@ -12,8 +12,13 @@ import com.excrele.kingdoms.KingdomsPlugin;
 import com.excrele.kingdoms.model.Kingdom;
 
 public class PerkTask extends BukkitRunnable {
+    private int tickCount = 0;
+    
     @Override
     public void run() {
+        tickCount++;
+        boolean shouldUpdateActionBar = (tickCount % 4 == 0); // Update action bar every 20 ticks (1 second)
+        
         for (Player player : KingdomsPlugin.getInstance().getServer().getOnlinePlayers()) {
             String kingdomName = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
             if (kingdomName == null) continue;
@@ -28,16 +33,26 @@ public class PerkTask extends BukkitRunnable {
 
             int level = kingdom.getLevel();
             if (level <= 0) continue;
+            
+            // Update action bar with XP progress
+            if (shouldUpdateActionBar) {
+                com.excrele.kingdoms.util.ActionBarManager.sendXPProgress(player);
+            }
+            
+            // Display level aura
+            if (tickCount % 10 == 0) { // Every 0.5 seconds
+                com.excrele.kingdoms.util.VisualEffects.displayLevelAura(player, level);
+            }
 
             // Speed Perk: 5% speed per level (amplifier 0 = Speed I, 1 = Speed II, etc.)
             int speedAmplifier = Math.max(0, (level - 1) / 4); // More reasonable speed progression
             player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 120, speedAmplifier, false, false));
 
-            // Regen Perk (only in non-PvP areas)
+            // Regen Perk (only in non-PvP areas) - 0.5 hearts every 5 seconds
             Map<String, String> chunkFlags = kingdom.getPlotFlags(currentChunk);
             String pvpFlag = chunkFlags.getOrDefault("pvp", "false");
             if (!pvpFlag.equalsIgnoreCase("true")) {
-                double healthToAdd = level * 0.5; // 0.5 hearts per level
+                double healthToAdd = 0.5; // Always 0.5 hearts per 5 seconds as per README
                 double maxHealth = player.getHealthScale();
                 double newHealth = Math.min(player.getHealth() + healthToAdd, maxHealth);
                 player.setHealth(newHealth);

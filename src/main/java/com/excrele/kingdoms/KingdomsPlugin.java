@@ -38,6 +38,8 @@ public class KingdomsPlugin extends JavaPlugin {
         registerCommands();
         registerListeners();
         startTasks();
+        registerPlaceholderAPI();
+        setupEconomy();
         getLogger().info("KingdomsPlugin enabled!");
     }
 
@@ -99,6 +101,22 @@ public class KingdomsPlugin extends JavaPlugin {
 
     private void startTasks() {
         new PerkTask().runTaskTimer(this, 0L, 100L); // Every 5 seconds
+        new com.excrele.kingdoms.task.AutoFeaturesTask().runTaskTimer(this, 0L, 20L); // Every second
+    }
+
+    private void registerPlaceholderAPI() {
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new com.excrele.kingdoms.expansion.KingdomsExpansion(this).register();
+            getLogger().info("PlaceholderAPI expansion registered!");
+        }
+    }
+
+    private void setupEconomy() {
+        if (com.excrele.kingdoms.util.EconomyManager.setupEconomy()) {
+            getLogger().info("Vault economy integration enabled!");
+        } else {
+            getLogger().info("Vault not found - economy features disabled.");
+        }
     }
 
     public static KingdomsPlugin getInstance() { return instance; }

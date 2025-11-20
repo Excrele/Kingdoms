@@ -2,6 +2,17 @@ cooldown:
   base: 86400  # 1 day in seconds
   increment: 86400  # +1 day per completion
 
+economy:
+  enabled: true  # Enable economy features (requires Vault)
+  claim_cost: 100.0  # Cost to claim a chunk
+  unclaim_refund: 50.0  # Refund when unclaiming (50% of claim cost)
+  levelup_cost: 0.0  # Cost to level up (0 = free, set to enable)
+  auto_features:
+    enabled: true  # Enable auto-features
+    auto_claim_adjacent: false  # Auto-claim adjacent chunks (requires permission)
+    auto_levelup: false  # Auto-level-up when XP threshold reached
+    auto_kick_inactive_days: 0  # Auto-kick inactive members (0 = disabled)
+
 challenges:
   mine_stone:
     description: "Mine 100 stone blocks"

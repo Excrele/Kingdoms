@@ -27,7 +27,9 @@ public class PlayerMoveListener implements Listener {
         if (previousChunk == null || !currentChunk.equals(previousChunk)) {
             Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomByChunk(currentChunk);
             if (kingdom != null) {
-                Particle particle = kingdom.getKing().equals(player.getName()) ?
+                String playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
+                // Show VILLAGER_HAPPY for own kingdom, SMOKE for others
+                Particle particle = (playerKingdom != null && playerKingdom.equals(kingdom.getName())) ?
                         Particle.HAPPY_VILLAGER : Particle.SMOKE;
                 displayChunkBorder(player, currentChunk, particle);
             }

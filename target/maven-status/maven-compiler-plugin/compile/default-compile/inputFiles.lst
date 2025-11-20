@@ -1,8 +1,10 @@
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\command\KingdomChatCommand.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\command\KingdomCommand.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\command\LevelUpCommand.java
+C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\expansion\KingdomsExpansion.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\gui\ChallengeGUI.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\gui\ClaimMapGenerator.java
+C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\gui\ClaimMapGUI.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\gui\KingdomManagementGUI.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\KingdomsPlugin.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\listener\BlockBreakListener.java
@@ -20,4 +22,8 @@ C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kin
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\model\Kingdom.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\model\MemberRole.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\model\PlayerChallengeData.java
+C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\task\AutoFeaturesTask.java
 C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\task\PerkTask.java
+C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\util\ActionBarManager.java
+C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\util\EconomyManager.java
+C:\Users\crypt\Developement\Java\kingdoms\kingdoms\src\main\java\com\excrele\kingdoms\util\VisualEffects.java
