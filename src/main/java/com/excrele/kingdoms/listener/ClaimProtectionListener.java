@@ -27,6 +27,10 @@ public class ClaimProtectionListener implements Listener {
         
         String playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
         if (playerKingdom == null || !playerKingdom.equals(kingdom.getName())) {
+            // Check if player is trusted
+            if (KingdomsPlugin.getInstance().getTrustManager().canBuild(player, kingdom.getName())) {
+                return; // Trusted player can build
+            }
             // Check if kingdoms are allied
             Kingdom playerK = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(playerKingdom);
             if (playerK != null && playerK.isAllied(kingdom.getName())) {
@@ -57,6 +61,10 @@ public class ClaimProtectionListener implements Listener {
         
         String playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
         if (playerKingdom == null || !playerKingdom.equals(kingdom.getName())) {
+            // Check if player is trusted
+            if (KingdomsPlugin.getInstance().getTrustManager().canBuild(player, kingdom.getName())) {
+                return; // Trusted player can build
+            }
             // Check if kingdoms are allied
             Kingdom playerK = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(playerKingdom);
             if (playerK != null && playerK.isAllied(kingdom.getName())) {
@@ -86,6 +94,19 @@ public class ClaimProtectionListener implements Listener {
         Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomByChunk(chunk);
         if (kingdom == null) return; // Unclaimed chunks are not protected
         
+        // Check if kingdoms are at war
+        String playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
+        if (event.getEntity() instanceof Player target) {
+            String targetKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(target.getName());
+            
+            // Allow PvP if kingdoms are at war
+            if (playerKingdom != null && targetKingdom != null && 
+                !playerKingdom.equals(targetKingdom) &&
+                KingdomsPlugin.getInstance().getWarManager().isAtWar(playerKingdom, targetKingdom)) {
+                return; // Allow PvP during war
+            }
+        }
+        
         // Check PvP flag
         java.util.Map<String, String> chunkFlags = kingdom.getPlotFlags(chunk);
         String pvpFlag = chunkFlags.getOrDefault("pvp", "false");
@@ -104,17 +125,50 @@ public class ClaimProtectionListener implements Listener {
         Player player = event.getPlayer();
         if (player.hasPermission("kingdoms.admin")) return; // Admins bypass
         
-        Chunk chunk = event.getClickedBlock().getChunk();
+        org.bukkit.block.Block clickedBlock = event.getClickedBlock();
+        if (clickedBlock == null) return;
+        Chunk chunk = clickedBlock.getChunk();
         Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomByChunk(chunk);
         if (kingdom == null) return; // Unclaimed chunks are not protected
         
         String playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
+        String blockType = clickedBlock.getType().toString();
+        
+        // Check redstone components
+        if (blockType.contains("REDSTONE") || blockType.contains("REPEATER") || 
+            blockType.contains("COMPARATOR") || blockType.contains("LEVER") ||
+            blockType.contains("BUTTON") || blockType.contains("PRESSURE_PLATE") ||
+            blockType.contains("TRIPWIRE") || blockType.contains("DAYLIGHT_DETECTOR") ||
+            blockType.contains("OBSERVER") || blockType.contains("DISPENSER") ||
+            blockType.contains("DROPPER") || blockType.contains("HOPPER")) {
+            
+            if (playerKingdom == null || !playerKingdom.equals(kingdom.getName())) {
+                // Check if player is trusted for redstone
+                if (!KingdomsPlugin.getInstance().getTrustManager().canUseRedstone(player, kingdom.getName())) {
+                    event.setCancelled(true);
+                    player.sendMessage("§cYou cannot use redstone in " + kingdom.getName() + "'s territory!");
+                    return;
+                }
+            } else {
+                // Member - check redstone flag
+                if (!KingdomsPlugin.getInstance().getFlagManager().canUseRedstone(player, chunk)) {
+                    event.setCancelled(true);
+                    player.sendMessage("§cRedstone is disabled in this area!");
+                    return;
+                }
+            }
+        }
+        
         if (playerKingdom == null || !playerKingdom.equals(kingdom.getName())) {
+            // Check if player is trusted
+            if (KingdomsPlugin.getInstance().getTrustManager().canInteract(player, kingdom.getName()) ||
+                KingdomsPlugin.getInstance().getTrustManager().canAccessContainer(player, kingdom.getName())) {
+                return; // Trusted player can interact
+            }
             // Check if kingdoms are allied
             Kingdom playerK = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(playerKingdom);
             if (playerK == null || !playerK.isAllied(kingdom.getName())) {
                 // Prevent interaction with chests, doors, etc. in enemy territory
-                String blockType = event.getClickedBlock().getType().toString();
                 if (blockType.contains("CHEST") ||
                     blockType.contains("DOOR") ||
                     blockType.contains("FURNACE") ||

@@ -7,11 +7,52 @@ economy:
   claim_cost: 100.0  # Cost to claim a chunk
   unclaim_refund: 50.0  # Refund when unclaiming (50% of claim cost)
   levelup_cost: 0.0  # Cost to level up (0 = free, set to enable)
+  tax_rate: 0.05  # 5% tax rate for kingdom operations
   auto_features:
     enabled: true  # Enable auto-features
     auto_claim_adjacent: false  # Auto-claim adjacent chunks (requires permission)
     auto_levelup: false  # Auto-level-up when XP threshold reached
-    auto_kick_inactive_days: 0  # Auto-kick inactive members (0 = disabled)
+    auto_kick_inactive_days: 30  # Auto-kick inactive members (0 = disabled, days since last login)
+  
+  # Claim Economy Settings
+  claim_economy:
+    enabled: true  # Enable claim selling, buying, auctions, and renting
+    auction_default_duration_hours: 24  # Default auction duration
+    rent_max_days: 30  # Maximum rental period in days
+  
+  # Vault Settings
+  vault:
+    enabled: true  # Enable kingdom vaults
+    size: 54  # Vault size in slots (54 = double chest)
+  
+  # Activity Tracking
+  activity_tracking:
+    enabled: true  # Enable activity tracking
+    track_playtime: true  # Track player playtime
+    track_contributions: true  # Track player contributions
+
+# Multi-World Support
+worlds:
+  blacklist: []  # List of worlds where claiming is disabled
+  # Example: ["world_creative", "world_pvp"]
+  settings:
+    # Per-world configuration
+    # world_name:
+    #   max_claims: 50  # Max claims per kingdom in this world (-1 = use default)
+    #   claim_cost: 150.0  # Cost to claim in this world (-1 = use default)
+    #   claiming_enabled: true  # Whether claiming is allowed
+    #   buffer_zone: 5  # Buffer zone between kingdoms in chunks
+
+# Communication Settings
+communication:
+  announcements:
+    enabled: true  # Enable kingdom announcements
+    max_length: 500  # Maximum announcement length
+  events:
+    enabled: true  # Enable kingdom events
+    reminder_times: [3600, 900, 60]  # Remind at 1h, 15m, 1m before event
+  notifications:
+    default_enabled: true  # Default notification state for new players
 
 challenges:
   mine_stone:

@@ -58,4 +58,105 @@ public class FlagManager {
     public void setPlotFlag(Player player, String flag, String value, Chunk chunk) {
         setFlag(player, flag, value, chunk); // Delegate to setFlag
     }
+
+    public boolean canUseRedstone(Player player, Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String redstoneFlag = flags.getOrDefault("redstone", "members");
+        if (redstoneFlag.equalsIgnoreCase("true")) return true;
+        if (redstoneFlag.equalsIgnoreCase("false")) return false;
+        // Check if player is member or trusted
+        String playerKingdom = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
+        if (playerKingdom != null && playerKingdom.equals(kingdom.getName())) {
+            return true; // Member
+        }
+        return plugin.getTrustManager().canUseRedstone(player, kingdom.getName());
+    }
+
+    public boolean canUsePiston(Player player, Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String pistonFlag = flags.getOrDefault("piston", "members");
+        if (pistonFlag.equalsIgnoreCase("true")) return true;
+        if (pistonFlag.equalsIgnoreCase("false")) return false;
+        // Check if player is member or trusted
+        String playerKingdom = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
+        if (playerKingdom != null && playerKingdom.equals(kingdom.getName())) {
+            return true; // Member
+        }
+        return plugin.getTrustManager().hasTrust(kingdom.getName(), player.getName(), 
+            com.excrele.kingdoms.model.TrustPermission.PISTON) ||
+            plugin.getTrustManager().hasTrust(kingdom.getName(), player.getName(), 
+            com.excrele.kingdoms.model.TrustPermission.ALL);
+    }
+
+    public boolean canBreedAnimals(Player player, Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String breedFlag = flags.getOrDefault("animal-breed", "members");
+        if (breedFlag.equalsIgnoreCase("true")) return true;
+        if (breedFlag.equalsIgnoreCase("false")) return false;
+        // Check if player is member or trusted
+        String playerKingdom = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
+        if (playerKingdom != null && playerKingdom.equals(kingdom.getName())) {
+            return true; // Member
+        }
+        return plugin.getTrustManager().hasTrust(kingdom.getName(), player.getName(), 
+            com.excrele.kingdoms.model.TrustPermission.ANIMAL_BREED) ||
+            plugin.getTrustManager().hasTrust(kingdom.getName(), player.getName(), 
+            com.excrele.kingdoms.model.TrustPermission.ALL);
+    }
+
+    public boolean canTrampleCrops(Player player, Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String trampleFlag = flags.getOrDefault("crop-trample", "true");
+        if (trampleFlag.equalsIgnoreCase("true")) return true;
+        if (trampleFlag.equalsIgnoreCase("false")) return false;
+        // Check if player is member or trusted
+        String playerKingdom = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
+        if (playerKingdom != null && playerKingdom.equals(kingdom.getName())) {
+            return true; // Member
+        }
+        return plugin.getTrustManager().hasTrust(kingdom.getName(), player.getName(), 
+            com.excrele.kingdoms.model.TrustPermission.CROP_TRAMPLE) ||
+            plugin.getTrustManager().hasTrust(kingdom.getName(), player.getName(), 
+            com.excrele.kingdoms.model.TrustPermission.ALL);
+    }
+
+    public boolean isExplosionAllowed(Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String explosionFlag = flags.getOrDefault("explosion", "false");
+        return explosionFlag.equalsIgnoreCase("true");
+    }
+
+    public boolean isFireSpreadAllowed(Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String fireFlag = flags.getOrDefault("fire-spread", "false");
+        return fireFlag.equalsIgnoreCase("true");
+    }
+
+    public boolean isMobSpawningAllowed(Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String mobSpawnFlag = flags.getOrDefault("mob-spawning", "true");
+        return mobSpawnFlag.equalsIgnoreCase("true");
+    }
+
+    public boolean isMobGriefAllowed(Chunk chunk) {
+        Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
+        if (kingdom == null) return true;
+        Map<String, String> flags = kingdom.getPlotFlags(chunk);
+        String mobGriefFlag = flags.getOrDefault("mob-grief", "false");
+        return mobGriefFlag.equalsIgnoreCase("true");
+    }
 }

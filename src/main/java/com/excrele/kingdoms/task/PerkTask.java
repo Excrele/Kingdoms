@@ -26,7 +26,9 @@ public class PerkTask extends BukkitRunnable {
             if (kingdom == null) continue;
 
             // Check if player is in a claimed chunk
-            Chunk currentChunk = player.getLocation().getChunk();
+            org.bukkit.Location playerLoc = player.getLocation();
+            if (playerLoc == null) continue;
+            Chunk currentChunk = playerLoc.getChunk();
             if (KingdomsPlugin.getInstance().getKingdomManager().getKingdomByChunk(currentChunk) != kingdom) {
                 continue; // Player not in their kingdom's claimed territory
             }

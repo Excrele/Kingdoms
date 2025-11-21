@@ -8,18 +8,26 @@ import com.excrele.kingdoms.model.Kingdom;
 
 public class ClaimMapGenerator {
     public static String generateClaimMap(Player player) {
-        String kingdomName = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
-        Chunk center = player.getLocation().getChunk();
+        org.bukkit.Location playerLoc = player.getLocation();
+        if (playerLoc == null) return "§cUnable to generate map - invalid location!";
+        
+        KingdomsPlugin plugin = KingdomsPlugin.getInstance();
+        if (plugin == null) return "§cPlugin not initialized!";
+        
+        String kingdomName = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
+        Chunk center = playerLoc.getChunk();
         int radius = 5; // 11x11 grid (5 chunks each direction)
         StringBuilder map = new StringBuilder("§6Claim Map (X: §e" + center.getX() + "§6, Z: §e" + center.getZ() + "§6)\n");
 
+        org.bukkit.World world = center.getWorld();
+        
         Kingdom playerKingdom = kingdomName != null ? 
-            KingdomsPlugin.getInstance().getKingdomManager().getKingdom(kingdomName) : null;
+            plugin.getKingdomManager().getKingdom(kingdomName) : null;
 
         for (int z = center.getZ() - radius; z <= center.getZ() + radius; z++) {
             for (int x = center.getX() - radius; x <= center.getX() + radius; x++) {
-                Chunk chunk = center.getWorld().getChunkAt(x, z);
-                Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomByChunk(chunk);
+                Chunk chunk = world.getChunkAt(x, z);
+                Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(chunk);
                 if (x == center.getX() && z == center.getZ()) {
                     map.append("§b[P]"); // Player position
                 } else if (kingdom != null) {

@@ -134,6 +134,221 @@ public class KingdomsExpansion extends PlaceholderExpansion {
             case "rank_members" -> String.valueOf(getRank(kingdom, "members"));
             case "rank_challenges" -> String.valueOf(getRank(kingdom, "challenges"));
             
+            // Bank
+            case "bank_balance" -> {
+                double balance = plugin.getBankManager().getBalance(kingdomName);
+                yield String.format("%.2f", balance);
+            }
+            case "bank_balance_formatted" -> {
+                double balance = plugin.getBankManager().getBalance(kingdomName);
+                yield plugin.getServer().getPluginManager().getPlugin("Vault") != null ?
+                    com.excrele.kingdoms.util.EconomyManager.format(balance) : String.format("%.2f", balance);
+            }
+            
+            // Activity
+            case "activity_last_login" -> {
+                com.excrele.kingdoms.model.PlayerActivity activity = plugin.getActivityManager().getActivity(player.getName());
+                if (activity != null) {
+                    long days = activity.getDaysSinceLastLogin();
+                    yield days == 0 ? "Today" : days + " days ago";
+                }
+                yield "Never";
+            }
+            case "activity_playtime" -> {
+                com.excrele.kingdoms.model.PlayerActivity activity = plugin.getActivityManager().getActivity(player.getName());
+                if (activity != null) {
+                    long hours = activity.getTotalPlaytime() / 3600;
+                    yield String.valueOf(hours);
+                }
+                yield "0";
+            }
+            case "activity_playtime_formatted" -> {
+                com.excrele.kingdoms.model.PlayerActivity activity = plugin.getActivityManager().getActivity(player.getName());
+                if (activity != null) {
+                    long total = activity.getTotalPlaytime();
+                    long hours = total / 3600;
+                    long minutes = (total % 3600) / 60;
+                    yield hours + "h " + minutes + "m";
+                }
+                yield "0h 0m";
+            }
+            
+            // Member Title
+            case "member_title" -> {
+                com.excrele.kingdoms.manager.AdvancedMemberManager manager = plugin.getAdvancedMemberManager();
+                if (manager != null) {
+                    com.excrele.kingdoms.model.MemberTitle title = manager.getMemberTitle(kingdomName, player.getName());
+                    yield title != null ? title.getFormattedTitle() : "";
+                }
+                yield "";
+            }
+            case "member_title_raw" -> {
+                com.excrele.kingdoms.manager.AdvancedMemberManager manager = plugin.getAdvancedMemberManager();
+                if (manager != null) {
+                    com.excrele.kingdoms.model.MemberTitle title = manager.getMemberTitle(kingdomName, player.getName());
+                    yield title != null ? title.getTitle() : "";
+                }
+                yield "";
+            }
+            
+            // Kingdom Health Score
+            case "health_score" -> {
+                if (plugin.getStatisticsManager() != null) {
+                    double score = plugin.getStatisticsManager().calculateKingdomHealthScore(kingdomName);
+                    yield String.format("%.1f", score);
+                }
+                yield "0.0";
+            }
+            case "health_score_int" -> {
+                if (plugin.getStatisticsManager() != null) {
+                    double score = plugin.getStatisticsManager().calculateKingdomHealthScore(kingdomName);
+                    yield String.valueOf((int) score);
+                }
+                yield "0";
+            }
+            
+            // Vault
+            case "vault_items" -> {
+                if (plugin.getVaultManager() != null) {
+                    org.bukkit.inventory.Inventory vault = plugin.getVaultManager().getVault(kingdom);
+                    if (vault != null) {
+                        int count = 0;
+                        for (org.bukkit.inventory.ItemStack item : vault.getContents()) {
+                            if (item != null && !item.getType().isAir()) count++;
+                        }
+                        yield String.valueOf(count);
+                    }
+                }
+                yield "0";
+            }
+            
+            // Customization
+            case "motto" -> {
+                if (plugin.getCustomizationManager() != null) {
+                    com.excrele.kingdoms.model.KingdomCustomization custom = plugin.getCustomizationManager().getCustomization(kingdomName);
+                    yield custom != null && custom.getMotto() != null ? custom.getMotto() : "";
+                }
+                yield "";
+            }
+            case "color" -> {
+                if (plugin.getCustomizationManager() != null) {
+                    com.excrele.kingdoms.model.KingdomCustomization custom = plugin.getCustomizationManager().getCustomization(kingdomName);
+                    yield custom != null && custom.getColorCode() != null ? custom.getColorCode() : "§7";
+                }
+                yield "§7";
+            }
+            
+            // Wars
+            case "wars_active" -> {
+                if (plugin.getWarManager() != null) {
+                    java.util.List<com.excrele.kingdoms.model.War> wars = plugin.getWarManager().getActiveWars(kingdomName);
+                    yield String.valueOf(wars != null ? wars.size() : 0);
+                }
+                yield "0";
+            }
+            case "at_war" -> {
+                if (plugin.getWarManager() != null) {
+                    java.util.List<com.excrele.kingdoms.model.War> wars = plugin.getWarManager().getActiveWars(kingdomName);
+                    yield (wars != null && !wars.isEmpty()) ? "true" : "false";
+                }
+                yield "false";
+            }
+            
+            // Trusts
+            case "trusts_count" -> {
+                if (plugin.getTrustManager() != null) {
+                    java.util.Map<String, java.util.Set<com.excrele.kingdoms.model.TrustPermission>> trusts = plugin.getTrustManager().getAllTrusts(kingdomName);
+                    yield String.valueOf(trusts != null ? trusts.size() : 0);
+                }
+                yield "0";
+            }
+            
+            // Advanced Features
+            case "waypoints_count" -> {
+                if (plugin.getAdvancedFeaturesManager() != null) {
+                    java.util.Map<String, com.excrele.kingdoms.model.Waypoint> waypoints = plugin.getAdvancedFeaturesManager().getWaypoints(kingdomName);
+                    yield String.valueOf(waypoints != null ? waypoints.size() : 0);
+                }
+                yield "0";
+            }
+            case "farms_count" -> {
+                if (plugin.getAdvancedFeaturesManager() != null) {
+                    java.util.Map<String, com.excrele.kingdoms.model.KingdomFarm> farms = plugin.getAdvancedFeaturesManager().getFarms(kingdomName);
+                    yield String.valueOf(farms != null ? farms.size() : 0);
+                }
+                yield "0";
+            }
+            case "workshops_count" -> {
+                if (plugin.getAdvancedFeaturesManager() != null) {
+                    // Would need to add getWorkshops method
+                    yield "0";
+                }
+                yield "0";
+            }
+            case "auto_claim_enabled" -> {
+                if (plugin.getAdvancedFeaturesManager() != null) {
+                    yield plugin.getAdvancedFeaturesManager().isAutoClaimEnabled(player) ? "true" : "false";
+                }
+                yield "false";
+            }
+            
+            // Statistics
+            case "growth_rate" -> {
+                if (plugin.getStatisticsManager() != null) {
+                    java.util.List<com.excrele.kingdoms.manager.StatisticsManager.GrowthData> growth = plugin.getStatisticsManager().getGrowthData(kingdomName);
+                    if (growth != null && growth.size() >= 2) {
+                        com.excrele.kingdoms.manager.StatisticsManager.GrowthData latest = growth.get(growth.size() - 1);
+                        com.excrele.kingdoms.manager.StatisticsManager.GrowthData previous = growth.get(growth.size() - 2);
+                        int levelGrowth = latest.level - previous.level;
+                        yield String.valueOf(levelGrowth);
+                    }
+                }
+                yield "0";
+            }
+            
+            // Communication
+            case "announcements_count" -> {
+                if (plugin.getCommunicationManager() != null) {
+                    java.util.List<com.excrele.kingdoms.model.KingdomAnnouncement> anns = plugin.getCommunicationManager().getAnnouncements(kingdomName);
+                    yield String.valueOf(anns != null ? anns.size() : 0);
+                }
+                yield "0";
+            }
+            case "events_upcoming" -> {
+                if (plugin.getCommunicationManager() != null) {
+                    java.util.List<com.excrele.kingdoms.model.KingdomEvent> events = plugin.getCommunicationManager().getEvents(kingdomName);
+                    if (events != null) {
+                        long now = System.currentTimeMillis() / 1000;
+                        long count = events.stream().filter(e -> e.getScheduledTime() > now).count();
+                        yield String.valueOf(count);
+                    }
+                }
+                yield "0";
+            }
+            
+            // Claim Economy
+            case "claims_for_sale" -> {
+                if (plugin.getClaimEconomyManager() != null) {
+                    // Would need method to get count
+                    yield "0";
+                }
+                yield "0";
+            }
+            
+            // World-specific
+            case "claims_in_world" -> {
+                String worldName = player.getWorld().getName();
+                int count = 0;
+                for (java.util.List<org.bukkit.Chunk> claimGroup : kingdom.getClaims()) {
+                    for (org.bukkit.Chunk chunk : claimGroup) {
+                        if (chunk.getWorld().getName().equals(worldName)) {
+                            count++;
+                        }
+                    }
+                }
+                yield String.valueOf(count);
+            }
+            
             default -> null;
         };
     }
@@ -174,7 +389,9 @@ public class KingdomsExpansion extends PlaceholderExpansion {
 
     private int getRank(Kingdom kingdom, String type) {
         int rank = 1;
-        for (Kingdom k : plugin.getKingdomManager().getKingdoms().values()) {
+        com.excrele.kingdoms.manager.KingdomManager km = plugin.getKingdomManager();
+        if (km == null) return rank;
+        for (Kingdom k : km.getKingdoms().values()) {
             if (k == kingdom) continue;
             boolean higher = switch (type) {
                 case "level" -> k.getLevel() > kingdom.getLevel() || 

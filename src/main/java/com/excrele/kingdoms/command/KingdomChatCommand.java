@@ -11,12 +11,16 @@ import com.excrele.kingdoms.listener.KingdomChatListener;
 public class KingdomChatCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        if (!(sender instanceof Player)) {
+        if (!(sender instanceof Player player)) {
             sender.sendMessage("Only players can use kingdom chat!");
             return true;
         }
-        Player player = (Player) sender;
-        String kingdomName = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
+        KingdomsPlugin plugin = KingdomsPlugin.getInstance();
+        if (plugin == null || plugin.getKingdomManager() == null) {
+            sender.sendMessage("§cPlugin not initialized!");
+            return true;
+        }
+        String kingdomName = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
         if (kingdomName == null) {
             player.sendMessage("You must be in a kingdom to use kingdom chat!");
             return true;

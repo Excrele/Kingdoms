@@ -27,11 +27,18 @@ public class InventoryClickListener implements Listener {
             int slot = event.getSlot();
             if (slot >= 54) return; // Outside inventory bounds
             
+            KingdomsPlugin plugin = KingdomsPlugin.getInstance();
+            if (plugin == null || plugin.getKingdomManager() == null) return;
+            
             String kingdomName = title.replace("Claim Map - ", "");
-            Kingdom playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(kingdomName);
+            Kingdom playerKingdom = plugin.getKingdomManager().getKingdom(kingdomName);
             if (playerKingdom == null) return;
             
-            Chunk center = player.getLocation().getChunk();
+            org.bukkit.Location playerLoc = player.getLocation();
+            if (playerLoc == null) return;
+            Chunk center = playerLoc.getChunk();
+            org.bukkit.World world = center.getWorld();
+            
             int radius = 5;
             int row = slot / 9;
             int col = slot % 9;
@@ -40,19 +47,22 @@ public class InventoryClickListener implements Listener {
             
             int chunkX = center.getX() - radius + col;
             int chunkZ = center.getZ() - radius + row;
-            Chunk clickedChunk = center.getWorld().getChunkAt(chunkX, chunkZ);
+            Chunk clickedChunk = world.getChunkAt(chunkX, chunkZ);
             
-            Kingdom clickedKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomByChunk(clickedChunk);
+            Kingdom clickedKingdom = plugin.getKingdomManager().getKingdomByChunk(clickedChunk);
             
             if (clickedKingdom == null) {
                 // Unclaimed chunk - try to claim if player has permission
                 if (playerKingdom.hasPermission(player.getName(), "claim")) {
                     player.closeInventory();
                     // Teleport player to chunk center for claiming
+                    org.bukkit.World chunkWorld = clickedChunk.getWorld();
+                    org.bukkit.Location playerLoc2 = player.getLocation();
+                    if (playerLoc2 == null) return;
                     org.bukkit.Location chunkLoc = new org.bukkit.Location(
-                        clickedChunk.getWorld(),
+                        chunkWorld,
                         (clickedChunk.getX() << 4) + 8,
-                        player.getLocation().getY(),
+                        playerLoc2.getY(),
                         (clickedChunk.getZ() << 4) + 8
                     );
                     player.teleport(chunkLoc);
@@ -81,13 +91,16 @@ public class InventoryClickListener implements Listener {
 
         if (title.startsWith("Kingdom: ")) {
             event.setCancelled(true);
+            KingdomsPlugin plugin = KingdomsPlugin.getInstance();
+            if (plugin == null || plugin.getKingdomManager() == null) return;
+            
             String kingdomName = title.replace("Kingdom: ", "");
-            Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(kingdomName);
+            Kingdom kingdom = plugin.getKingdomManager().getKingdom(kingdomName);
             if (kingdom == null) return;
             
             int slot = event.getSlot();
             switch (slot) {
-                case 10: // Members (Invite)
+                case 10 -> { // Members (Invite)
                     if (kingdom.hasPermission(player.getName(), "invite")) {
                         player.closeInventory();
                         com.excrele.kingdoms.util.ActionBarManager.sendNotification(player, 
@@ -96,8 +109,8 @@ public class InventoryClickListener implements Listener {
                     } else {
                         player.sendMessage("§cYou don't have permission to invite members!");
                     }
-                    break;
-                case 12: // Claims (Unclaim)
+                }
+                case 12 -> { // Claims (Unclaim)
                     if (kingdom.hasPermission(player.getName(), "unclaim")) {
                         player.closeInventory();
                         com.excrele.kingdoms.util.ActionBarManager.sendNotification(player, 
@@ -106,8 +119,8 @@ public class InventoryClickListener implements Listener {
                     } else {
                         player.sendMessage("§cYou don't have permission to unclaim chunks!");
                     }
-                    break;
-                case 14: // Flags (Set Flag)
+                }
+                case 14 -> { // Flags (Set Flag)
                     if (kingdom.hasPermission(player.getName(), "setplotflags")) {
                         player.closeInventory();
                         com.excrele.kingdoms.util.ActionBarManager.sendNotification(player, 
@@ -116,8 +129,8 @@ public class InventoryClickListener implements Listener {
                     } else {
                         player.sendMessage("§cYou don't have permission to set flags!");
                     }
-                    break;
-                case 16: // XP and Level (Show detailed info)
+                }
+                case 16 -> { // XP and Level (Show detailed info)
                     int currentLevel = kingdom.getLevel();
                     int required = currentLevel * currentLevel * 1000;
                     int progress = required > 0 ? Math.min(100, (kingdom.getXp() * 100) / required) : 100;
@@ -127,11 +140,11 @@ public class InventoryClickListener implements Listener {
                     player.sendMessage("§7XP: §e" + kingdom.getXp() + "§7/§e" + required + " §7(" + progress + "%)");
                     player.sendMessage("§7Progress: " + progressBar);
                     player.sendMessage("§7Challenges Completed: §e" + kingdom.getTotalChallengesCompleted());
-                    break;
-                case 22: // Contributions
+                }
+                case 22 -> { // Contributions
                     player.closeInventory();
                     player.performCommand("kingdom contributions");
-                    break;
+                }
             }
         }
     }

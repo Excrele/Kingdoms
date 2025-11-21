@@ -14,6 +14,9 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 import com.excrele.kingdoms.KingdomsPlugin;
 import com.excrele.kingdoms.model.Kingdom;
+import com.excrele.kingdoms.util.ClaimCache;
+import com.excrele.kingdoms.util.ErrorHandler;
+import com.excrele.kingdoms.util.SaveQueue;
 
 public class KingdomManager {
     private final KingdomsPlugin plugin; // Add plugin reference
@@ -22,6 +25,9 @@ public class KingdomManager {
     private final Map<String, String> playerToKingdom;
     private final FileConfiguration kingdomsConfig;
     private final File kingdomsFile;
+    private final ClaimCache claimCache;
+    private final ErrorHandler errorHandler;
+    private SaveQueue saveQueue;
 
     public KingdomManager(KingdomsPlugin plugin, FileConfiguration kingdomsConfig, File kingdomsFile) {
         this.plugin = plugin; // Initialize plugin
@@ -30,7 +36,16 @@ public class KingdomManager {
         this.playerToKingdom = new HashMap<>();
         this.kingdomsConfig = kingdomsConfig;
         this.kingdomsFile = kingdomsFile;
+        this.claimCache = new ClaimCache(1000); // Cache up to 1000 chunks
+        this.errorHandler = new ErrorHandler(plugin);
         loadKingdoms();
+    }
+    
+    /**
+     * Set the save queue for async operations
+     */
+    public void setSaveQueue(SaveQueue saveQueue) {
+        this.saveQueue = saveQueue;
     }
 
     private void loadKingdoms() {
@@ -41,7 +56,9 @@ public class KingdomManager {
             String path = "kingdoms." + name;
             String kingName = kingdomsConfig.getString(path + ".king");
             if (kingName == null) {
-                plugin.getLogger().warning("Kingdom " + name + " has no king, skipping...");
+                if (plugin.getLogger().isLoggable(java.util.logging.Level.WARNING)) {
+                    plugin.getLogger().warning("Kingdom " + name + " has no king, skipping...");
+                }
                 continue;
             }
             Kingdom kingdom = new Kingdom(name, kingName);
@@ -74,14 +91,16 @@ public class KingdomManager {
                                 com.excrele.kingdoms.model.MemberRole role = com.excrele.kingdoms.model.MemberRole.valueOf(roleName.toUpperCase());
                                 kingdom.setRole(player, role);
                             } catch (IllegalArgumentException e) {
-                                plugin.getLogger().warning("Invalid role for player " + player + " in kingdom " + name + ": " + roleName);
+                                if (plugin.getLogger().isLoggable(java.util.logging.Level.WARNING)) {
+                                    plugin.getLogger().warning("Invalid role for player " + player + " in kingdom " + name + ": " + roleName);
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Load spawn location
+            // Load spawn location (backward compatibility)
             if (kingdomsConfig.contains(path + ".spawn")) {
                 String worldName = kingdomsConfig.getString(path + ".spawn.world");
                 if (worldName != null) {
@@ -93,6 +112,27 @@ public class KingdomManager {
                         float yaw = (float) kingdomsConfig.getDouble(path + ".spawn.yaw");
                         float pitch = (float) kingdomsConfig.getDouble(path + ".spawn.pitch");
                         kingdom.setSpawn(new Location(world, x, y, z, yaw, pitch));
+                    }
+                }
+            }
+            
+            // Load multiple spawn points
+            if (kingdomsConfig.contains(path + ".spawns")) {
+                org.bukkit.configuration.ConfigurationSection spawnsSection = kingdomsConfig.getConfigurationSection(path + ".spawns");
+                if (spawnsSection != null) {
+                    for (String spawnName : spawnsSection.getKeys(false)) {
+                        String worldName = kingdomsConfig.getString(path + ".spawns." + spawnName + ".world");
+                        if (worldName != null) {
+                            World world = plugin.getServer().getWorld(worldName);
+                            if (world != null) {
+                                double x = kingdomsConfig.getDouble(path + ".spawns." + spawnName + ".x");
+                                double y = kingdomsConfig.getDouble(path + ".spawns." + spawnName + ".y");
+                                double z = kingdomsConfig.getDouble(path + ".spawns." + spawnName + ".z");
+                                float yaw = (float) kingdomsConfig.getDouble(path + ".spawns." + spawnName + ".yaw", 0.0);
+                                float pitch = (float) kingdomsConfig.getDouble(path + ".spawns." + spawnName + ".pitch", 0.0);
+                                kingdom.addSpawn(spawnName, new Location(world, x, y, z, yaw, pitch));
+                            }
+                        }
                     }
                 }
             }
@@ -113,7 +153,9 @@ public class KingdomManager {
                                 kingdom.setPlotType(chunk, plotType);
                             }
                         } catch (NumberFormatException e) {
-                            plugin.getLogger().warning("Invalid chunk coordinates in plotTypes for kingdom " + name + ": " + chunkKey);
+                            if (plugin.getLogger().isLoggable(java.util.logging.Level.WARNING)) {
+                                plugin.getLogger().warning("Invalid chunk coordinates in plotTypes for kingdom " + name + ": " + chunkKey);
+                            }
                         }
                     }
                 }
@@ -142,7 +184,9 @@ public class KingdomManager {
                             }
                             kingdom.getChunkFlags().put(chunk, flags);
                         } catch (NumberFormatException e) {
-                            plugin.getLogger().warning("Invalid chunk coordinates in chunkFlags for kingdom " + name + ": " + chunkKey);
+                            if (plugin.getLogger().isLoggable(java.util.logging.Level.WARNING)) {
+                                plugin.getLogger().warning("Invalid chunk coordinates in chunkFlags for kingdom " + name + ": " + chunkKey);
+                            }
                         }
                     }
                 }
@@ -166,7 +210,9 @@ public class KingdomManager {
                                 String key = chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ();
                                 claimedChunks.put(key, kingdom);
                             } catch (NumberFormatException e) {
-                                plugin.getLogger().warning("Invalid chunk coordinates in claims for kingdom " + name + ": " + chunkKey);
+                                if (plugin.getLogger().isLoggable(java.util.logging.Level.WARNING)) {
+                                    plugin.getLogger().warning("Invalid chunk coordinates in claims for kingdom " + name + ": " + chunkKey);
+                                }
                             }
                         }
                     }
@@ -183,6 +229,26 @@ public class KingdomManager {
     }
 
     public void saveKingdoms(FileConfiguration kingdomsConfig, File kingdomsFile) {
+        saveKingdoms(kingdomsConfig, kingdomsFile, false);
+    }
+    
+    /**
+     * Save kingdoms synchronously or asynchronously
+     */
+    public void saveKingdoms(FileConfiguration kingdomsConfig, File kingdomsFile, boolean async) {
+        if (async && saveQueue != null) {
+            // Queue for async save
+            saveQueue.enqueue(() -> performSave(kingdomsConfig, kingdomsFile));
+        } else {
+            // Immediate save
+            performSave(kingdomsConfig, kingdomsFile);
+        }
+    }
+    
+    /**
+     * Perform the actual save operation (can be called async)
+     */
+    private void performSave(FileConfiguration kingdomsConfig, File kingdomsFile) {
         kingdomsConfig.set("kingdoms", null);
         for (Kingdom kingdom : kingdoms.values()) {
             String path = "kingdoms." + kingdom.getName();
@@ -207,32 +273,53 @@ public class KingdomManager {
                 kingdomsConfig.set(path + ".memberRoles." + entry.getKey(), entry.getValue().name());
             }
 
-            // Save spawn location
+            // Save spawn location (backward compatibility)
             if (kingdom.getSpawn() != null) {
                 Location spawn = kingdom.getSpawn();
-                kingdomsConfig.set(path + ".spawn.world", spawn.getWorld().getName());
-                kingdomsConfig.set(path + ".spawn.x", spawn.getX());
-                kingdomsConfig.set(path + ".spawn.y", spawn.getY());
-                kingdomsConfig.set(path + ".spawn.z", spawn.getZ());
-                kingdomsConfig.set(path + ".spawn.yaw", spawn.getYaw());
-                kingdomsConfig.set(path + ".spawn.pitch", spawn.getPitch());
+                if (spawn.getWorld() != null) {
+                    kingdomsConfig.set(path + ".spawn.world", spawn.getWorld().getName());
+                    kingdomsConfig.set(path + ".spawn.x", spawn.getX());
+                    kingdomsConfig.set(path + ".spawn.y", spawn.getY());
+                    kingdomsConfig.set(path + ".spawn.z", spawn.getZ());
+                    kingdomsConfig.set(path + ".spawn.yaw", spawn.getYaw());
+                    kingdomsConfig.set(path + ".spawn.pitch", spawn.getPitch());
+                }
+            }
+            
+            // Save multiple spawn points
+            kingdomsConfig.set(path + ".spawns", null);
+            for (Map.Entry<String, Location> entry : kingdom.getSpawns().entrySet()) {
+                Location spawnLoc = entry.getValue();
+                if (spawnLoc != null && spawnLoc.getWorld() != null) {
+                    String spawnKey = entry.getKey();
+                    kingdomsConfig.set(path + ".spawns." + spawnKey + ".world", spawnLoc.getWorld().getName());
+                    kingdomsConfig.set(path + ".spawns." + spawnKey + ".x", spawnLoc.getX());
+                    kingdomsConfig.set(path + ".spawns." + spawnKey + ".y", spawnLoc.getY());
+                    kingdomsConfig.set(path + ".spawns." + spawnKey + ".z", spawnLoc.getZ());
+                    kingdomsConfig.set(path + ".spawns." + spawnKey + ".yaw", spawnLoc.getYaw());
+                    kingdomsConfig.set(path + ".spawns." + spawnKey + ".pitch", spawnLoc.getPitch());
+                }
             }
 
             // Save plot types
             kingdomsConfig.set(path + ".plotTypes", null);
             for (Map.Entry<Chunk, String> entry : kingdom.getPlotTypes().entrySet()) {
                 Chunk chunk = entry.getKey();
-                String chunkKey = chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ();
-                kingdomsConfig.set(path + ".plotTypes." + chunkKey, entry.getValue());
+                if (chunk.getWorld() != null) {
+                    String chunkKey = chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ();
+                    kingdomsConfig.set(path + ".plotTypes." + chunkKey, entry.getValue());
+                }
             }
 
             // Save per-chunk flags
             kingdomsConfig.set(path + ".chunkFlags", null);
             for (Map.Entry<Chunk, Map<String, String>> entry : kingdom.getChunkFlags().entrySet()) {
                 Chunk chunk = entry.getKey();
-                String chunkKey = chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ();
-                for (Map.Entry<String, String> flag : entry.getValue().entrySet()) {
-                    kingdomsConfig.set(path + ".chunkFlags." + chunkKey + "." + flag.getKey(), flag.getValue());
+                if (chunk.getWorld() != null) {
+                    String chunkKey = chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ();
+                    for (Map.Entry<String, String> flag : entry.getValue().entrySet()) {
+                        kingdomsConfig.set(path + ".chunkFlags." + chunkKey + "." + flag.getKey(), flag.getValue());
+                    }
                 }
             }
 
@@ -241,7 +328,9 @@ public class KingdomManager {
             for (List<Chunk> tier : kingdom.getClaims()) {
                 List<String> chunks = new ArrayList<>();
                 for (Chunk chunk : tier) {
-                    chunks.add(chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ());
+                    if (chunk.getWorld() != null) {
+                        chunks.add(chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ());
+                    }
                 }
                 claimList.add(chunks);
             }
@@ -250,8 +339,7 @@ public class KingdomManager {
         try {
             kingdomsConfig.save(kingdomsFile);
         } catch (IOException e) {
-            plugin.getLogger().severe("Failed to save kingdoms.yml: " + e.getMessage());
-            e.printStackTrace();
+            errorHandler.handleSaveError("save kingdoms", e, () -> performSave(kingdomsConfig, kingdomsFile));
         }
     }
 
@@ -259,8 +347,22 @@ public class KingdomManager {
     public Kingdom getKingdom(String name) { return kingdoms.get(name); }
     public Map<String, Kingdom> getKingdoms() { return kingdoms; }
     public Kingdom getKingdomByChunk(Chunk chunk) {
+        // Try cache first
+        Kingdom cached = claimCache.get(chunk);
+        if (cached != null) {
+            return cached;
+        }
+        
+        // Fall back to map lookup
         String key = chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ();
-        return claimedChunks.get(key);
+        Kingdom kingdom = claimedChunks.get(key);
+        
+        // Update cache
+        if (kingdom != null) {
+            claimCache.put(chunk, kingdom);
+        }
+        
+        return kingdom;
     }
     public Map<String, Kingdom> getClaimedChunks() { return claimedChunks; }
     public void setPlayerKingdom(String player, String kingdomName) { playerToKingdom.put(player, kingdomName); }
@@ -270,6 +372,7 @@ public class KingdomManager {
     public void claimChunk(Kingdom kingdom, Chunk chunk, List<Chunk> claim) {
         String key = chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ();
         claimedChunks.put(key, kingdom);
+        claimCache.put(chunk, kingdom); // Update cache
         claim.add(chunk);
         kingdom.setCurrentClaimChunks(kingdom.getCurrentClaimChunks() + 1);
     }
@@ -283,6 +386,7 @@ public class KingdomManager {
             kingdom.getPlotTypes().remove(chunk); // Remove plot type
         }
         claimedChunks.remove(key);
+        claimCache.remove(chunk); // Remove from cache
     }
 
     public void dissolveKingdom(String kingdomName) {

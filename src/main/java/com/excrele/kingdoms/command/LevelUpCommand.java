@@ -11,17 +11,25 @@ import com.excrele.kingdoms.model.Kingdom;
 public class LevelUpCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        if (!(sender instanceof Player)) {
+        if (!(sender instanceof Player player)) {
             sender.sendMessage("Only players can use this command!");
             return true;
         }
-        Player player = (Player) sender;
-        String kingdomName = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
+        KingdomsPlugin plugin = KingdomsPlugin.getInstance();
+        if (plugin == null) {
+            sender.sendMessage("§cPlugin not initialized!");
+            return true;
+        }
+        if (plugin.getKingdomManager() == null) {
+            sender.sendMessage("§cKingdom manager not initialized!");
+            return true;
+        }
+        String kingdomName = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
         if (kingdomName == null) {
             player.sendMessage("You are not in a kingdom!");
             return true;
         }
-        Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(kingdomName);
+        Kingdom kingdom = plugin.getKingdomManager().getKingdom(kingdomName);
         if (kingdom == null) {
             player.sendMessage("Kingdom not found!");
             return true;
@@ -38,8 +46,8 @@ public class LevelUpCommand implements CommandExecutor {
         }
         
         // Check economy cost
-        double levelupCost = KingdomsPlugin.getInstance().getConfig().getDouble("economy.levelup_cost", 0.0);
-        boolean economyEnabled = KingdomsPlugin.getInstance().getConfig().getBoolean("economy.enabled", false);
+        double levelupCost = plugin.getConfig().getDouble("economy.levelup_cost", 0.0);
+        boolean economyEnabled = plugin.getConfig().getBoolean("economy.enabled", false);
         if (economyEnabled && levelupCost > 0 && com.excrele.kingdoms.util.EconomyManager.isEnabled()) {
             if (!com.excrele.kingdoms.util.EconomyManager.hasEnough(player, levelupCost)) {
                 player.sendMessage("§cYou don't have enough money! Cost: " + 
@@ -56,6 +64,13 @@ public class LevelUpCommand implements CommandExecutor {
         kingdom.setXp(kingdom.getXp() - requiredXp);
         kingdom.setLevel(currentLevel + 1);
         int newLevel = currentLevel + 1;
+        
+        // Record history
+        if (plugin.getStatisticsManager() != null) {
+            plugin.getStatisticsManager().addHistoryEntry(kingdomName, 
+                com.excrele.kingdoms.model.KingdomHistory.HistoryType.LEVEL_UP, 
+                "Kingdom leveled up to level " + newLevel, player.getName());
+        }
         
         // Visual effects
         com.excrele.kingdoms.util.VisualEffects.playLevelUpEffects(player, newLevel);
@@ -76,9 +91,9 @@ public class LevelUpCommand implements CommandExecutor {
         }
         
         player.sendMessage("§6Kingdom leveled up to level " + newLevel + "!");
-        KingdomsPlugin.getInstance().getKingdomManager().saveKingdoms(
-                KingdomsPlugin.getInstance().getKingdomsConfig(),
-                KingdomsPlugin.getInstance().getKingdomsFile()
+        plugin.getKingdomManager().saveKingdoms(
+                plugin.getKingdomsConfig(),
+                plugin.getKingdomsFile()
         );
         return true;
     }

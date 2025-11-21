@@ -15,13 +15,17 @@ import com.excrele.kingdoms.KingdomsPlugin;
 import com.excrele.kingdoms.model.Challenge;
 import com.excrele.kingdoms.model.Kingdom;
 import com.excrele.kingdoms.model.PlayerChallengeData;
+import com.excrele.kingdoms.util.ErrorHandler;
+import com.excrele.kingdoms.util.SaveQueue;
 
 public class ChallengeManager {
-    private List<Challenge> challenges;
+    private final List<Challenge> challenges;
     private Map<String, Map<String, PlayerChallengeData>> playerData;
     private Map<String, List<Challenge>> eventToChallenges;
-    private FileConfiguration playerDataConfig;
-    private File playerDataFile;
+    private final FileConfiguration playerDataConfig;
+    private final File playerDataFile;
+    private final ErrorHandler errorHandler;
+    private SaveQueue saveQueue;
 
     public ChallengeManager(KingdomsPlugin plugin) {
         this.challenges = new ArrayList<>();
@@ -36,33 +40,53 @@ public class ChallengeManager {
             }
         }
         this.playerDataConfig = YamlConfiguration.loadConfiguration(playerDataFile);
+        this.errorHandler = new ErrorHandler(plugin);
         loadChallenges(plugin.getConfig());
         loadPlayerData();
+    }
+    
+    /**
+     * Set the save queue for async operations
+     */
+    public void setSaveQueue(SaveQueue saveQueue) {
+        this.saveQueue = saveQueue;
     }
 
     private void loadChallenges(FileConfiguration config) {
         if (!config.contains("challenges")) return;
-        for (String key : config.getConfigurationSection("challenges").getKeys(false)) {
+        org.bukkit.configuration.ConfigurationSection challengesSection = config.getConfigurationSection("challenges");
+        if (challengesSection == null) return;
+        for (String key : challengesSection.getKeys(false)) {
             String path = "challenges." + key;
+            String description = config.getString(path + ".description");
+            if (description == null) continue;
+            org.bukkit.configuration.ConfigurationSection taskSection = config.getConfigurationSection(path + ".task");
+            if (taskSection == null) continue;
             Challenge challenge = new Challenge(
                     key,
-                    config.getString(path + ".description"),
+                    description,
                     config.getInt(path + ".difficulty"),
                     config.getInt(path + ".xp_reward"),
-                    config.getConfigurationSection(path + ".task").getValues(false)
+                    taskSection.getValues(false)
             );
             challenges.add(challenge);
             String eventType = (String) challenge.getTask().get("type");
-            eventToChallenges.computeIfAbsent(eventType, k -> new ArrayList<>()).add(challenge);
+            if (eventType != null) {
+                eventToChallenges.computeIfAbsent(eventType, k -> new ArrayList<>()).add(challenge);
+            }
         }
     }
 
     private void loadPlayerData() {
         if (!playerDataConfig.contains("players")) return;
-        for (String player : playerDataConfig.getConfigurationSection("players").getKeys(false)) {
+        org.bukkit.configuration.ConfigurationSection playersSection = playerDataConfig.getConfigurationSection("players");
+        if (playersSection == null) return;
+        for (String player : playersSection.getKeys(false)) {
             Map<String, PlayerChallengeData> challengeData = new HashMap<>();
             String path = "players." + player + ".completions";
-            for (String challengeId : playerDataConfig.getConfigurationSection(path).getKeys(false)) {
+            org.bukkit.configuration.ConfigurationSection completionsSection = playerDataConfig.getConfigurationSection(path);
+            if (completionsSection == null) continue;
+            for (String challengeId : completionsSection.getKeys(false)) {
                 String cPath = path + "." + challengeId;
                 PlayerChallengeData data = new PlayerChallengeData();
                 data.setTimesCompleted(playerDataConfig.getInt(cPath + ".times"));
@@ -75,6 +99,24 @@ public class ChallengeManager {
     }
 
     public void savePlayerData() {
+        savePlayerData(false);
+    }
+    
+    /**
+     * Save player data synchronously or asynchronously
+     */
+    public void savePlayerData(boolean async) {
+        if (async && saveQueue != null) {
+            saveQueue.enqueue(this::performSave);
+        } else {
+            performSave();
+        }
+    }
+    
+    /**
+     * Perform the actual save operation (can be called async)
+     */
+    private void performSave() {
         playerDataConfig.set("players", null);
         for (Map.Entry<String, Map<String, PlayerChallengeData>> entry : playerData.entrySet()) {
             String player = entry.getKey();
@@ -89,7 +131,7 @@ public class ChallengeManager {
         try {
             playerDataConfig.save(playerDataFile);
         } catch (IOException e) {
-            e.printStackTrace();
+            errorHandler.handleSaveError("save player challenge data", e, this::performSave);
         }
     }
 
@@ -131,7 +173,7 @@ public class ChallengeManager {
                 player.sendMessage("§7Progress: §e" + data.getProgress() + "§7/§e" + requiredAmount + " §7(" + progressPercent + "%) for §6" + challenge.getDescription());
             }
         }
-        savePlayerData();
+        savePlayerData(true); // Use async save
     }
 
     public void completeChallenge(Player player, Challenge challenge) {
@@ -158,16 +200,17 @@ public class ChallengeManager {
         com.excrele.kingdoms.util.ActionBarManager.sendChallengeComplete(player, challenge.getDescription(), xpReward);
         
         player.sendMessage("§aChallenge completed: " + challenge.getDescription() + "! +" + xpReward + " XP");
-        savePlayerData();
+        savePlayerData(true); // Use async save
         KingdomsPlugin.getInstance().getKingdomManager().saveKingdoms(
                 KingdomsPlugin.getInstance().getKingdomsConfig(),
-                KingdomsPlugin.getInstance().getKingdomsFile()
+                KingdomsPlugin.getInstance().getKingdomsFile(),
+                true // Use async save
         );
     }
 
     public PlayerChallengeData getPlayerChallengeData(Player player, Challenge challenge) {
-        Map<String, PlayerChallengeData> challenges = playerData.get(player.getName());
-        return challenges != null ? challenges.get(challenge.getId()) : null;
+        Map<String, PlayerChallengeData> playerChallenges = playerData.get(player.getName());
+        return playerChallenges != null ? playerChallenges.get(challenge.getId()) : null;
     }
 
     public List<Challenge> getChallenges() { return challenges; }

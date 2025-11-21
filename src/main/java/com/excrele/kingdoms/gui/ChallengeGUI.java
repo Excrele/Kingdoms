@@ -57,24 +57,22 @@ public class ChallengeGUI {
 
     private static Material getMaterialForChallenge(String taskType, String target) {
         try {
-            switch (taskType) {
-                case "block_break":
-                    return Material.valueOf(target);
-                case "entity_kill":
+            return switch (taskType) {
+                case "block_break" -> Material.valueOf(target);
+                case "entity_kill" -> {
                     // Some entities don't have spawn eggs (Ender Dragon, Wither, etc.)
                     try {
-                        return Material.valueOf(target + "_SPAWN_EGG");
+                        yield Material.valueOf(target + "_SPAWN_EGG");
                     } catch (IllegalArgumentException e) {
                         // Fallback to appropriate material for entities without spawn eggs
-                        if (target.equals("ENDER_DRAGON")) return Material.DRAGON_HEAD;
-                        if (target.equals("WITHER")) return Material.WITHER_SKELETON_SKULL;
-                        return Material.SKELETON_SPAWN_EGG; // Generic fallback
+                        if (target.equals("ENDER_DRAGON")) yield Material.DRAGON_HEAD;
+                        if (target.equals("WITHER")) yield Material.WITHER_SKELETON_SKULL;
+                        yield Material.SKELETON_SPAWN_EGG; // Generic fallback
                     }
-                case "craft_item":
-                    return Material.valueOf(target);
-                default:
-                    return Material.BOOK;
-            }
+                }
+                case "craft_item" -> Material.valueOf(target);
+                default -> Material.BOOK;
+            };
         } catch (IllegalArgumentException e) {
             return Material.BOOK; // Fallback for invalid materials
         }

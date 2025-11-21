@@ -5,8 +5,6 @@ import com.excrele.kingdoms.model.Kingdom;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.List;
-
 public class AutoFeaturesTask extends BukkitRunnable {
     private int tickCount = 0;
 
@@ -28,6 +26,51 @@ public class AutoFeaturesTask extends BukkitRunnable {
         // Auto-kick inactive members (every 5 minutes)
         if (tickCount % 6000 == 0) {
             checkAutoKickInactive(plugin);
+        }
+
+        // Check for expired wars (every 30 seconds)
+        if (tickCount % 600 == 0) {
+            plugin.getWarManager().checkExpiredWars();
+        }
+        
+        // Check for expired auctions and rents (every 30 seconds)
+        if (tickCount % 600 == 0) {
+            plugin.getClaimEconomyManager().checkExpiredAuctions();
+            plugin.getClaimEconomyManager().checkExpiredRents();
+        }
+        
+        // Check for upcoming events (every 60 seconds)
+        if (tickCount % 1200 == 0) {
+            plugin.getCommunicationManager().checkUpcomingEvents();
+        }
+        
+        // Record growth snapshots (once per day)
+        if (tickCount % 172800 == 0) { // 24 hours = 172800 ticks (at 20 TPS)
+            for (String kingdomName : plugin.getKingdomManager().getKingdoms().keySet()) {
+                plugin.getStatisticsManager().recordGrowthSnapshot(kingdomName);
+            }
+        }
+        
+        // Process farms (every 5 minutes)
+        if (tickCount % 6000 == 0 && plugin.getAdvancedFeaturesManager() != null) {
+            processFarms(plugin);
+        }
+    }
+    
+    private void processFarms(KingdomsPlugin plugin) {
+        // Auto-harvest farms that are ready
+        for (String kingdomName : plugin.getKingdomManager().getKingdoms().keySet()) {
+            java.util.Map<String, com.excrele.kingdoms.model.KingdomFarm> farms = 
+                plugin.getAdvancedFeaturesManager().getFarms(kingdomName);
+            if (farms != null) {
+                for (com.excrele.kingdoms.model.KingdomFarm farm : farms.values()) {
+                    if (farm.canHarvest()) {
+                        // Auto-harvest logic would go here
+                        // For now, just update last harvest time
+                        farm.setLastHarvest(System.currentTimeMillis() / 1000);
+                    }
+                }
+            }
         }
     }
 
@@ -96,48 +139,8 @@ public class AutoFeaturesTask extends BukkitRunnable {
     }
 
     private void checkAutoKickInactive(KingdomsPlugin plugin) {
-        int inactiveDays = plugin.getConfig().getInt("economy.auto_features.auto_kick_inactive_days", 0);
-        if (inactiveDays <= 0) {
-            return;
-        }
-
-        // Note: Full implementation would require tracking last seen times
-        // This is a placeholder for future enhancement
-
-        for (Kingdom kingdom : plugin.getKingdomManager().getKingdoms().values()) {
-            List<String> toKick = new java.util.ArrayList<>();
-            
-            for (String memberName : kingdom.getMembers()) {
-                Player member = plugin.getServer().getPlayer(memberName);
-                if (member == null || !member.isOnline()) {
-                    // Check last seen time (would need to track this in Kingdom model)
-                    // For now, we'll skip this as it requires additional data tracking
-                    // This is a placeholder for future implementation
-                }
-            }
-            
-            // Kick inactive members
-            for (String memberName : toKick) {
-                kingdom.getMembers().remove(memberName);
-                kingdom.getMemberRoles().remove(memberName);
-                kingdom.getMemberContributions().remove(memberName);
-                plugin.getKingdomManager().removePlayerKingdom(memberName);
-                
-                Player member = plugin.getServer().getPlayer(memberName);
-                if (member != null && member.isOnline()) {
-                    member.sendMessage("§cYou were removed from " + kingdom.getName() + " for inactivity (" + inactiveDays + " days).");
-                }
-            }
-            
-            if (!toKick.isEmpty()) {
-                // Notify kingdom
-                Player king = plugin.getServer().getPlayer(kingdom.getKing());
-                if (king != null && king.isOnline()) {
-                    king.sendMessage("§7" + toKick.size() + " inactive member(s) were automatically removed from your kingdom.");
-                }
-                plugin.getKingdomManager().saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile());
-            }
-        }
+        // Use ActivityManager to check and kick inactive members
+        plugin.getActivityManager().checkInactiveMembers();
     }
 }
 

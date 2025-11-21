@@ -9,19 +9,20 @@ import org.bukkit.Chunk;
 import org.bukkit.Location;
 
 public class Kingdom {
-    private String name;
-    private String king;
-    private List<String> members;
-    private Map<Chunk, String> plotTypes;
-    private Map<Chunk, Map<String, String>> chunkFlags; // Per-chunk flags
-    private List<List<Chunk>> claims;
+    private final String name;
+    private final String king;
+    private final List<String> members;
+    private final Map<Chunk, String> plotTypes;
+    private final Map<Chunk, Map<String, String>> chunkFlags; // Per-chunk flags
+    private final List<List<Chunk>> claims;
     private int currentClaimChunks;
     private int xp;
     private int level;
-    private Location spawn; // Kingdom spawn location
-    private Map<String, Integer> memberContributions; // Track XP contributions per member
-    private Map<String, MemberRole> memberRoles; // Track roles for each member
-    private List<String> alliances; // List of allied kingdom names
+    private Location spawn; // Kingdom spawn location (deprecated, use spawns)
+    private Map<String, Location> spawns; // Multiple spawn points (name -> location)
+    private final Map<String, Integer> memberContributions; // Track XP contributions per member
+    private final Map<String, MemberRole> memberRoles; // Track roles for each member
+    private final List<String> alliances; // List of allied kingdom names
     private long createdAt; // Kingdom creation timestamp
     private int totalChallengesCompleted; // Total challenges completed by all members
 
@@ -37,6 +38,7 @@ public class Kingdom {
         this.xp = 0;
         this.level = 1;
         this.spawn = null; // Set later during chunk claim
+        this.spawns = new HashMap<>(); // Initialize spawns map
         this.memberContributions = new HashMap<>();
         this.memberRoles = new HashMap<>();
         this.memberRoles.put(king, MemberRole.KING); // King always has KING role
@@ -64,8 +66,50 @@ public class Kingdom {
     public int getLevel() { return level; }
     public void setLevel(int level) { this.level = level; }
     public int getMaxClaimChunks() { return 10 + 5 * level; }
-    public Location getSpawn() { return spawn; }
-    public void setSpawn(Location spawn) { this.spawn = spawn; }
+    public Location getSpawn() { 
+        // Backward compatibility: return main spawn or first spawn in map
+        if (spawn != null) return spawn;
+        if (spawns != null && !spawns.isEmpty()) {
+            return spawns.values().iterator().next();
+        }
+        return null;
+    }
+    public void setSpawn(Location spawn) { 
+        this.spawn = spawn;
+        // Also set as "main" spawn point
+        if (spawns == null) spawns = new HashMap<>();
+        spawns.put("main", spawn);
+    }
+    
+    // Multiple spawn points support
+    public Map<String, Location> getSpawns() { 
+        if (spawns == null) spawns = new HashMap<>();
+        // Migrate old spawn to spawns if needed
+        if (spawn != null && !spawns.containsKey("main")) {
+            spawns.put("main", spawn);
+        }
+        return spawns; 
+    }
+    public void addSpawn(String name, Location location) {
+        if (spawns == null) spawns = new HashMap<>();
+        spawns.put(name.toLowerCase(), location);
+        // Update main spawn if this is the "main" spawn
+        if (name.equalsIgnoreCase("main")) {
+            this.spawn = location;
+        }
+    }
+    public void removeSpawn(String name) {
+        if (spawns == null) return;
+        spawns.remove(name.toLowerCase());
+        // Don't remove main spawn if it's the only one
+        if (name.equalsIgnoreCase("main") && spawn != null) {
+            spawn = null;
+        }
+    }
+    public Location getSpawn(String name) {
+        if (spawns == null) return null;
+        return spawns.get(name.toLowerCase());
+    }
     public Map<String, Integer> getMemberContributions() { return memberContributions; }
     public void addContribution(String player, int amount) {
         memberContributions.put(player, memberContributions.getOrDefault(player, 0) + amount);

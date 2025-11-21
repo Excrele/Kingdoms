@@ -15,13 +15,21 @@ public class EntityDeathListener implements Listener {
     public void onEntityDeath(EntityDeathEvent event) {
         Player player = event.getEntity().getKiller();
         if (player == null) return;
-        List<Challenge> challenges = KingdomsPlugin.getInstance().getChallengeManager().getEventToChallenges().get("entity_kill");
+        KingdomsPlugin plugin = KingdomsPlugin.getInstance();
+        
+        // Record entity interaction for statistics
+        if (plugin.getStatisticsManager() != null) {
+            org.bukkit.Chunk chunk = event.getEntity().getLocation().getChunk();
+            plugin.getStatisticsManager().recordEntityInteraction(chunk);
+        }
+        
+        List<Challenge> challenges = plugin.getChallengeManager().getEventToChallenges().get("entity_kill");
         if (challenges == null) return;
 
         for (Challenge challenge : challenges) {
             String requiredEntity = (String) challenge.getTask().get("entity");
             if (event.getEntity().getType().toString().equalsIgnoreCase(requiredEntity)) {
-                KingdomsPlugin.getInstance().getChallengeManager().updateChallengeProgress(player, challenge, 1);
+                plugin.getChallengeManager().updateChallengeProgress(player, challenge, 1);
             }
         }
     }

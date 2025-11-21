@@ -25,13 +25,37 @@ public class PlayerMoveListener implements Listener {
         Chunk previousChunk = lastChunk.get(playerId);
 
         if (previousChunk == null || !currentChunk.equals(previousChunk)) {
-            Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomByChunk(currentChunk);
+            KingdomsPlugin plugin = KingdomsPlugin.getInstance();
+            Kingdom kingdom = plugin.getKingdomManager().getKingdomByChunk(currentChunk);
+            
+            // Auto-claim check
+            if (kingdom == null && plugin.getAdvancedFeaturesManager() != null) {
+                if (plugin.getAdvancedFeaturesManager().isAutoClaimEnabled(player) && 
+                    plugin.getAdvancedFeaturesManager().canAutoClaim(player)) {
+                    String playerKingdomName = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
+                    if (playerKingdomName != null) {
+                        Kingdom playerKingdom = plugin.getKingdomManager().getKingdom(playerKingdomName);
+                        if (playerKingdom != null && playerKingdom.hasPermission(player.getName(), "claim")) {
+                            if (plugin.getClaimManager().claimChunk(playerKingdom, currentChunk)) {
+                                plugin.getAdvancedFeaturesManager().recordAutoClaim(player);
+                                player.sendMessage("§aAuto-claimed chunk!");
+                            }
+                        }
+                    }
+                }
+            }
+            
             if (kingdom != null) {
-                String playerKingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdomOfPlayer(player.getName());
+                String playerKingdom = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
                 // Show VILLAGER_HAPPY for own kingdom, SMOKE for others
                 Particle particle = (playerKingdom != null && playerKingdom.equals(kingdom.getName())) ?
                         Particle.HAPPY_VILLAGER : Particle.SMOKE;
                 displayChunkBorder(player, currentChunk, particle);
+                
+                // Record claim visit for statistics
+                if (plugin.getStatisticsManager() != null) {
+                    plugin.getStatisticsManager().recordClaimVisit(currentChunk, player.getName());
+                }
             }
             lastChunk.put(playerId, currentChunk);
         }
