@@ -92,18 +92,56 @@ public class KingdomCommand implements CommandExecutor {
                 }
                 Chunk initialChunk = playerLoc.getChunk();
                 org.bukkit.World world = initialChunk.getWorld();
-                if (claimManager != null && claimManager.claimChunk(newKingdom, initialChunk)) {
-                    // claimChunk already adds the chunk to claims, no need to add again
-                    // Set default spawn to chunk center
-                    double x = (initialChunk.getX() << 4) + 8.5;
-                    double z = (initialChunk.getZ() << 4) + 8.5;
-                    double y = world.getHighestBlockYAt((int) x, (int) z) + 1;
-                    newKingdom.setSpawn(new Location(initialChunk.getWorld(), x, y, z, 0, 0));
-                    createPlayer.sendMessage("Chunk claimed and spawn set!");
-                } else {
-                    createPlayer.sendMessage("Cannot claim this chunk!");
+                
+                if (claimManager == null) {
+                    createPlayer.sendMessage("§cClaim manager not available!");
+                    return true;
                 }
-
+                
+                // Attempt to claim the chunk - this is required for kingdom creation
+                if (!claimManager.claimChunk(newKingdom, initialChunk)) {
+                    createPlayer.sendMessage("§cCannot claim this chunk! The kingdom was not created.");
+                    createPlayer.sendMessage("§7Check the server console for detailed reason.");
+                    // Log to console for admin visibility
+                    plugin.getLogger().warning(String.format(
+                        "[KingdomCommand] Failed to create kingdom '%s' for player '%s' at chunk (%d, %d) in world '%s'",
+                        kingdomName, createPlayer.getName(), initialChunk.getX(), initialChunk.getZ(), 
+                        initialChunk.getWorld().getName()));
+                    // Remove the kingdom since we couldn't claim the chunk
+                    kingdomManager.dissolveKingdom(newKingdom.getName());
+                    return true;
+                }
+                
+                // Chunk claimed successfully - set spawn point to player's location
+                // Ensure spawn is safe (not in a block, not too high)
+                Location spawnLoc = playerLoc.clone();
+                org.bukkit.block.Block blockAtFeet = world.getBlockAt(spawnLoc);
+                org.bukkit.block.Block blockAtHead = world.getBlockAt(spawnLoc.clone().add(0, 1, 0));
+                
+                // If player is in a block or head is blocked, find a safe location
+                if (blockAtFeet.getType().isSolid() || blockAtHead.getType().isSolid()) {
+                    // Find a safe Y position at the player's X/Z coordinates
+                    int safeY = world.getHighestBlockYAt((int) spawnLoc.getX(), (int) spawnLoc.getZ()) + 1;
+                    if (safeY < world.getMinHeight()) safeY = world.getMinHeight() + 1;
+                    if (safeY > world.getMaxHeight() - 1) safeY = world.getMaxHeight() - 1;
+                    spawnLoc.setY(safeY);
+                } else {
+                    // Player is in a safe location, but ensure Y is on a solid block
+                    // Check if there's a solid block below the player
+                    org.bukkit.block.Block blockBelow = world.getBlockAt(spawnLoc.clone().subtract(0, 1, 0));
+                    if (!blockBelow.getType().isSolid() && spawnLoc.getY() > world.getMinHeight()) {
+                        // Find the highest solid block below the player
+                        int safeY = world.getHighestBlockYAt((int) spawnLoc.getX(), (int) spawnLoc.getZ()) + 1;
+                        if (safeY < world.getMinHeight()) safeY = world.getMinHeight() + 1;
+                        if (safeY > world.getMaxHeight() - 1) safeY = world.getMaxHeight() - 1;
+                        spawnLoc.setY(safeY);
+                    }
+                }
+                
+                // Set the spawn point to the player's location (or safe adjusted location)
+                newKingdom.setSpawn(spawnLoc);
+                createPlayer.sendMessage("§aChunk claimed and spawn point set!");
+                
                 sender.sendMessage("§aKingdom created: " + kingdomName);
                 kingdomManager.saveKingdoms(plugin.getKingdomsConfig(), plugin.getKingdomsFile(), true);
                 return true;

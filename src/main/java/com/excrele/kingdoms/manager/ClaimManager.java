@@ -1,5 +1,6 @@
 package com.excrele.kingdoms.manager;
 
+import com.excrele.kingdoms.KingdomsPlugin;
 import com.excrele.kingdoms.model.Kingdom;
 import org.bukkit.Chunk;
 import org.bukkit.World;
@@ -10,37 +11,77 @@ import java.util.List;
 public class ClaimManager {
     private KingdomManager kingdomManager;
     private WorldManager worldManager;
+    private KingdomsPlugin plugin;
 
     public ClaimManager(KingdomManager kingdomManager) {
         this.kingdomManager = kingdomManager;
         this.worldManager = null; // Will be set after WorldManager is created
+        this.plugin = KingdomsPlugin.getInstance(); // Get plugin instance
     }
     
     public void setWorldManager(WorldManager worldManager) {
         this.worldManager = worldManager;
     }
+    
+    public void setPlugin(KingdomsPlugin plugin) {
+        this.plugin = plugin;
+    }
 
     public boolean claimChunk(Kingdom kingdom, Chunk chunk) {
-        if (isChunkClaimed(chunk)) return false;
+        if (kingdom == null) {
+            logClaimFailure("null", "unknown chunk", "Kingdom is null");
+            return false;
+        }
+        if (chunk == null) {
+            logClaimFailure(kingdom.getName(), "null chunk", "Chunk is null");
+            return false;
+        }
         
         World world = chunk.getWorld();
+        if (world == null) {
+            logClaimFailure(kingdom.getName(), String.format("Chunk: (%d, %d)", chunk.getX(), chunk.getZ()), 
+                "Chunk world is null");
+            return false;
+        }
         
-        // Check world-specific rules
+        String chunkInfo = String.format("World: %s, Chunk: (%d, %d)", 
+            world.getName(), chunk.getX(), chunk.getZ());
+        String kingdomInfo = kingdom.getName();
+        
+        if (isChunkClaimed(chunk)) {
+            Kingdom existingOwner = kingdomManager.getKingdomByChunk(chunk);
+            String ownerName = existingOwner != null ? existingOwner.getName() : "unknown";
+            logClaimFailure(kingdomInfo, chunkInfo, 
+                String.format("Chunk is already claimed by kingdom: %s", ownerName));
+            return false;
+        }
+        
+        // Check world-specific rules (applies to all claims, including first)
         if (worldManager != null) {
             if (!worldManager.isClaimingEnabled(world)) {
+                logClaimFailure(kingdomInfo, chunkInfo, 
+                    String.format("Claiming is disabled in world: %s", world.getName()));
                 return false; // Claiming disabled in this world
             }
             if (!worldManager.canClaimInWorld(kingdom, world)) {
+                int currentClaims = kingdom.getCurrentClaimChunks();
+                int maxClaims = worldManager.getMaxClaimsForWorld(kingdom, world);
+                logClaimFailure(kingdomInfo, chunkInfo, 
+                    String.format("Exceeds world-specific claim limit. Current: %d, Max: %d", 
+                        currentClaims, maxClaims));
                 return false; // Exceeds world-specific claim limit
             }
         } else {
             // Fallback to default check
             if (kingdom.getCurrentClaimChunks() >= kingdom.getMaxClaimChunks()) {
+                logClaimFailure(kingdomInfo, chunkInfo, 
+                    String.format("Exceeds default claim limit. Current: %d, Max: %d", 
+                        kingdom.getCurrentClaimChunks(), kingdom.getMaxClaimChunks()));
                 return false; // Exceeds claim limit
             }
         }
 
-        // Check buffer zone (world-specific if available)
+        // Check buffer zone (applies to all claims, including first)
         int bufferZone = 5; // Default
         if (worldManager != null) {
             bufferZone = worldManager.getBufferZoneForWorld(world);
@@ -52,7 +93,11 @@ public class ClaimManager {
                     // Only check buffer zone for chunks in the same world
                     for (Chunk otherChunk : claim) {
                         if (otherChunk.getWorld().equals(world)) {
-                            if (minDistance(chunk, claim) < (bufferZone + 1)) {
+                            int distance = minDistance(chunk, claim);
+                            if (distance < (bufferZone + 1)) {
+                                logClaimFailure(kingdomInfo, chunkInfo, 
+                                    String.format("Too close to kingdom '%s'. Distance: %d, Required: %d (buffer zone: %d)", 
+                                        otherK.getName(), distance, bufferZone + 1, bufferZone));
                                 return false; // Too close to another kingdom
                             }
                         }
@@ -61,13 +106,21 @@ public class ClaimManager {
             }
         }
 
+        // Check if this is the first claim for this kingdom
+        // First claims don't need adjacency checks, but buffer zone is still enforced
         List<List<Chunk>> claims = kingdom.getClaims();
-        if (claims.isEmpty()) {
-            // First claim - no adjacency required
+        boolean isFirstClaim = claims.isEmpty() || kingdom.getCurrentClaimChunks() == 0;
+        
+        if (isFirstClaim) {
+            // First claim - no adjacency required (buffer zone already checked above)
             List<Chunk> mainClaim = new ArrayList<>();
             mainClaim.add(chunk);
             claims.add(mainClaim);
             kingdomManager.claimChunk(kingdom, chunk, mainClaim);
+            if (plugin != null) {
+                plugin.getLogger().info(String.format("[ClaimManager] Successfully claimed chunk %s for kingdom '%s' (first claim)", 
+                    chunkInfo, kingdomInfo));
+            }
             return true;
         }
 
@@ -76,12 +129,26 @@ public class ClaimManager {
             if (isAdjacent(chunk, claim)) {
                 claim.add(chunk);
                 kingdomManager.claimChunk(kingdom, chunk, claim);
+                if (plugin != null) {
+                    plugin.getLogger().info(String.format("[ClaimManager] Successfully claimed chunk %s for kingdom '%s' (adjacent claim)", 
+                        chunkInfo, kingdomInfo));
+                }
                 return true;
             }
         }
 
         // Chunk is not adjacent to any existing claim - reject
+        logClaimFailure(kingdomInfo, chunkInfo, 
+            "Chunk is not adjacent to any existing claims. New chunks must be adjacent to existing claims.");
         return false;
+    }
+    
+    private void logClaimFailure(String kingdomName, String chunkInfo, String reason) {
+        if (plugin != null) {
+            plugin.getLogger().warning(String.format(
+                "[ClaimManager] Failed to claim chunk for kingdom '%s' - %s. Reason: %s", 
+                kingdomName, chunkInfo, reason));
+        }
     }
 
     public boolean unclaimChunk(Kingdom kingdom, Chunk chunk) {
