@@ -27,6 +27,23 @@ public class AutoFeaturesTask extends BukkitRunnable {
         if (tickCount % 6000 == 0) {
             checkAutoKickInactive(plugin);
         }
+        
+        // Auto-claim adjacent chunks (every 10 minutes)
+        if (tickCount % 12000 == 0 && plugin.getAutomatedKingdomManager() != null) {
+            for (Kingdom kingdom : plugin.getKingdomManager().getKingdoms().values()) {
+                plugin.getAutomatedKingdomManager().autoClaimAdjacentChunks(kingdom);
+            }
+        }
+        
+        // Auto-disband inactive kingdoms (once per day)
+        if (tickCount % 172800 == 0 && plugin.getAutomatedKingdomManager() != null) {
+            plugin.getAutomatedKingdomManager().autoDisbandInactiveKingdoms();
+        }
+        
+        // Auto-merge small kingdoms (once per day)
+        if (tickCount % 172800 == 0 && plugin.getAutomatedKingdomManager() != null) {
+            plugin.getAutomatedKingdomManager().autoMergeSmallKingdoms();
+        }
 
         // Check for expired wars (every 30 seconds)
         if (tickCount % 600 == 0) {
@@ -37,6 +54,36 @@ public class AutoFeaturesTask extends BukkitRunnable {
         if (tickCount % 600 == 0) {
             plugin.getClaimEconomyManager().checkExpiredAuctions();
             plugin.getClaimEconomyManager().checkExpiredRents();
+        }
+        
+        // Process loan payments (every 5 minutes)
+        if (tickCount % 6000 == 0 && plugin.getAdvancedEconomyManager() != null) {
+            plugin.getAdvancedEconomyManager().processLoanPayments();
+        }
+        
+        // Process salary payments (every hour)
+        if (tickCount % 72000 == 0 && plugin.getAdvancedEconomyManager() != null) {
+            plugin.getAdvancedEconomyManager().processSalaryPayments();
+        }
+        
+        // Process investments (every 5 minutes)
+        if (tickCount % 6000 == 0 && plugin.getAdvancedEconomyManager() != null) {
+            plugin.getAdvancedEconomyManager().processInvestments();
+        }
+        
+        // Process war reparations (every hour)
+        if (tickCount % 72000 == 0 && plugin.getEnhancedWarManager() != null) {
+            plugin.getEnhancedWarManager().processReparationPayments();
+        }
+        
+        // Check expired ceasefires (every 5 minutes)
+        if (tickCount % 6000 == 0 && plugin.getEnhancedWarManager() != null) {
+            plugin.getEnhancedWarManager().checkExpiredCeasefires();
+        }
+        
+        // Process reputation decay (once per day)
+        if (tickCount % 172800 == 0 && plugin.getReputationManager() != null) {
+            plugin.getReputationManager().processReputationDecay();
         }
         
         // Check for upcoming events (every 60 seconds)
@@ -69,19 +116,36 @@ public class AutoFeaturesTask extends BukkitRunnable {
     
     private void processFarms(KingdomsPlugin plugin) {
         // Auto-harvest farms that are ready
+        if (plugin.getAdvancedFeaturesManager() == null) return;
+        
         for (String kingdomName : plugin.getKingdomManager().getKingdoms().keySet()) {
             java.util.Map<String, com.excrele.kingdoms.model.KingdomFarm> farms = 
                 plugin.getAdvancedFeaturesManager().getFarms(kingdomName);
             if (farms != null) {
                 for (com.excrele.kingdoms.model.KingdomFarm farm : farms.values()) {
                     if (farm.canHarvest()) {
-                        // Auto-harvest logic would go here
-                        // For now, just update last harvest time
-                        farm.setLastHarvest(System.currentTimeMillis() / 1000);
+                        // Auto-harvest: collect resources to kingdom storage
+                        if (plugin.getResourceManager() != null) {
+                            // Get farm type and calculate yield
+                            com.excrele.kingdoms.model.KingdomFarm.FarmType farmType = farm.getType();
+                            int yield = calculateFarmYield(farmType);
+                            
+                            // Add resources to farm's resource map (will be collected manually)
+                            if (farmType == com.excrele.kingdoms.model.KingdomFarm.FarmType.CROP) {
+                                farm.addResource("wheat", yield);
+                            }
+                            
+                            farm.setLastHarvest(System.currentTimeMillis() / 1000);
+                        }
                     }
                 }
             }
         }
+    }
+    
+    private int calculateFarmYield(com.excrele.kingdoms.model.KingdomFarm.FarmType farmType) {
+        // Base yield per harvest
+        return 64; // Approximate yield per harvest
     }
 
     private void checkAutoLevelUp(KingdomsPlugin plugin) {

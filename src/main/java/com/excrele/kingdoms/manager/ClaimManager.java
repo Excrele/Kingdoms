@@ -115,6 +115,32 @@ public class ClaimManager {
             // First claim - no adjacency required (buffer zone already checked above)
             List<Chunk> mainClaim = new ArrayList<>();
             mainClaim.add(chunk);
+            
+            // Call KingdomClaimEvent
+            org.bukkit.entity.Player claimer = null;
+            if (plugin != null && plugin.getServer() != null) {
+                // Try to find the player who initiated the claim
+                for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                    if (p.getLocation().getChunk().equals(chunk)) {
+                        String kingdomName = plugin.getKingdomManager().getKingdomOfPlayer(p.getName());
+                        if (kingdomName != null && kingdomName.equals(kingdom.getName())) {
+                            claimer = p;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            com.excrele.kingdoms.api.event.KingdomClaimEvent claimEvent = 
+                new com.excrele.kingdoms.api.event.KingdomClaimEvent(kingdom, chunk, claimer);
+            if (plugin != null && plugin.getServer() != null) {
+                plugin.getServer().getPluginManager().callEvent(claimEvent);
+                if (claimEvent.isCancelled()) {
+                    logClaimFailure(kingdomInfo, chunkInfo, "Claim was cancelled by another plugin");
+                    return false;
+                }
+            }
+            
             claims.add(mainClaim);
             kingdomManager.claimChunk(kingdom, chunk, mainClaim);
             if (plugin != null) {
@@ -127,6 +153,31 @@ public class ClaimManager {
         // Check if chunk is adjacent to any existing claim
         for (List<Chunk> claim : claims) {
             if (isAdjacent(chunk, claim)) {
+                // Call KingdomClaimEvent
+                org.bukkit.entity.Player claimer = null;
+                if (plugin != null && plugin.getServer() != null) {
+                    // Try to find the player who initiated the claim
+                    for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                        if (p.getLocation().getChunk().equals(chunk)) {
+                            String kingdomName = plugin.getKingdomManager().getKingdomOfPlayer(p.getName());
+                            if (kingdomName != null && kingdomName.equals(kingdom.getName())) {
+                                claimer = p;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                com.excrele.kingdoms.api.event.KingdomClaimEvent claimEvent = 
+                    new com.excrele.kingdoms.api.event.KingdomClaimEvent(kingdom, chunk, claimer);
+                if (plugin != null && plugin.getServer() != null) {
+                    plugin.getServer().getPluginManager().callEvent(claimEvent);
+                    if (claimEvent.isCancelled()) {
+                        logClaimFailure(kingdomInfo, chunkInfo, "Claim was cancelled by another plugin");
+                        return false;
+                    }
+                }
+                
                 claim.add(chunk);
                 kingdomManager.claimChunk(kingdom, chunk, claim);
                 if (plugin != null) {
@@ -156,6 +207,28 @@ public class ClaimManager {
         if (!kingdomManager.getClaimedChunks().containsKey(key) || kingdomManager.getKingdomByChunk(chunk) != kingdom) {
             return false;
         }
+        
+        // Call KingdomUnclaimEvent
+        org.bukkit.entity.Player unclaimer = null;
+        if (plugin != null && plugin.getServer() != null) {
+            // Try to find the player who initiated the unclaim
+            for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                if (p.getLocation().getChunk().equals(chunk)) {
+                    String kingdomName = plugin.getKingdomManager().getKingdomOfPlayer(p.getName());
+                    if (kingdomName != null && kingdomName.equals(kingdom.getName())) {
+                        unclaimer = p;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        com.excrele.kingdoms.api.event.KingdomUnclaimEvent unclaimEvent = 
+            new com.excrele.kingdoms.api.event.KingdomUnclaimEvent(kingdom, chunk, unclaimer);
+        if (plugin != null && plugin.getServer() != null) {
+            plugin.getServer().getPluginManager().callEvent(unclaimEvent);
+        }
+        
         for (List<Chunk> claim : kingdom.getClaims()) {
             if (claim.contains(chunk)) {
                 claim.remove(chunk);

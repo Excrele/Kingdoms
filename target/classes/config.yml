@@ -42,6 +42,13 @@ worlds:
     #   claim_cost: 150.0  # Cost to claim in this world (-1 = use default)
     #   claiming_enabled: true  # Whether claiming is allowed
     #   buffer_zone: 5  # Buffer zone between kingdoms in chunks
+    #   economy_enabled: true  # Whether economy features are enabled in this world
+    #   tax_rate: 0.05  # Tax rate for this world (-1 = use default)
+    #   unclaim_refund: 50.0  # Refund when unclaiming (-1 = use default)
+    #   cross_world_teleport: true  # Whether cross-world teleportation is allowed
+    #   allow_teleport_from: true  # Whether players can teleport FROM this world
+    #   allow_teleport_to: true  # Whether players can teleport TO this world
+    #   separate_leaderboards: false  # Whether this world has separate leaderboards
 
 # Communication Settings
 communication:

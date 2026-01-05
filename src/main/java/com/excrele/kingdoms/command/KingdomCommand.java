@@ -74,6 +74,17 @@ public class KingdomCommand implements CommandExecutor {
                     return true;
                 }
                 Kingdom newKingdom = new Kingdom(kingdomName, createPlayer.getName());
+                
+                // Call KingdomCreateEvent
+                com.excrele.kingdoms.api.event.KingdomCreateEvent createEvent = 
+                    new com.excrele.kingdoms.api.event.KingdomCreateEvent(newKingdom, createPlayer);
+                plugin.getServer().getPluginManager().callEvent(createEvent);
+                
+                if (createEvent.isCancelled()) {
+                    sender.sendMessage("§cKingdom creation was cancelled!");
+                    return true;
+                }
+                
                 kingdomManager.addKingdom(newKingdom);
                 kingdomManager.setPlayerKingdom(createPlayer.getName(), kingdomName);
                 
@@ -178,6 +189,17 @@ public class KingdomCommand implements CommandExecutor {
                     return true;
                 }
                 Kingdom joinKingdom = kingdomManager.getKingdom(inviteKingdom);
+                
+                // Call KingdomMemberJoinEvent
+                com.excrele.kingdoms.api.event.KingdomMemberJoinEvent joinEvent = 
+                    new com.excrele.kingdoms.api.event.KingdomMemberJoinEvent(joinKingdom, (Player) sender);
+                plugin.getServer().getPluginManager().callEvent(joinEvent);
+                
+                if (joinEvent.isCancelled()) {
+                    sender.sendMessage("§cJoining kingdom was cancelled!");
+                    return true;
+                }
+                
                 joinKingdom.addMember(sender.getName());
                 joinKingdom.setRole(sender.getName(), com.excrele.kingdoms.model.MemberRole.MEMBER); // Default role
                 kingdomManager.setPlayerKingdom(sender.getName(), inviteKingdom);
@@ -197,6 +219,12 @@ public class KingdomCommand implements CommandExecutor {
                     sender.sendMessage("The king cannot leave! Use /" + label + " admin dissolve instead.");
                     return true;
                 }
+                // Call KingdomMemberLeaveEvent
+                com.excrele.kingdoms.api.event.KingdomMemberLeaveEvent leaveEvent = 
+                    new com.excrele.kingdoms.api.event.KingdomMemberLeaveEvent(leaveKingdom, (Player) sender, 
+                        com.excrele.kingdoms.api.event.KingdomMemberLeaveEvent.LeaveReason.VOLUNTARY);
+                plugin.getServer().getPluginManager().callEvent(leaveEvent);
+                
                 leaveKingdom.getMembers().remove(sender.getName());
                 kingdomManager.removePlayerKingdom(sender.getName());
                 sender.sendMessage("You have left " + playerKingdom);

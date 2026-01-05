@@ -11,8 +11,14 @@ public class War {
     private boolean active;
     private int kingdom1Score;
     private int kingdom2Score;
+    private String reason; // Reason for war declaration
+    private String declaredBy; // Player who declared war
 
     public War(String kingdom1, String kingdom2, long duration) {
+        this(kingdom1, kingdom2, duration, null, null);
+    }
+    
+    public War(String kingdom1, String kingdom2, long duration, String reason, String declaredBy) {
         this.warId = UUID.randomUUID().toString();
         this.kingdom1 = kingdom1;
         this.kingdom2 = kingdom2;
@@ -21,6 +27,8 @@ public class War {
         this.active = true;
         this.kingdom1Score = 0;
         this.kingdom2Score = 0;
+        this.reason = reason;
+        this.declaredBy = declaredBy;
     }
 
     public String getWarId() { return warId; }
@@ -46,6 +54,22 @@ public class War {
     }
     public boolean isExpired() {
         return System.currentTimeMillis() / 1000 >= endTime;
+    }
+    
+    public String getReason() {
+        return reason;
+    }
+    
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+    
+    public String getDeclaredBy() {
+        return declaredBy;
+    }
+    
+    public void setDeclaredBy(String declaredBy) {
+        this.declaredBy = declaredBy;
     }
 }
 

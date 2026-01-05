@@ -65,6 +65,11 @@ public class LevelUpCommand implements CommandExecutor {
         kingdom.setLevel(currentLevel + 1);
         int newLevel = currentLevel + 1;
         
+        // Call KingdomLevelUpEvent
+        com.excrele.kingdoms.api.event.KingdomLevelUpEvent levelUpEvent = 
+            new com.excrele.kingdoms.api.event.KingdomLevelUpEvent(kingdom, currentLevel, newLevel);
+        plugin.getServer().getPluginManager().callEvent(levelUpEvent);
+        
         // Record history
         if (plugin.getStatisticsManager() != null) {
             plugin.getStatisticsManager().addHistoryEntry(kingdomName, 

@@ -41,6 +41,11 @@ public class WarManager {
     }
 
     public boolean declareWar(String declaringKingdom, String targetKingdom, long duration) {
+        return declareWar(declaringKingdom, targetKingdom, duration, null, null);
+    }
+    
+    public boolean declareWar(String declaringKingdom, String targetKingdom, long duration, 
+                             String reason, String declaredBy) {
         if (declaringKingdom.equals(targetKingdom)) {
             return false; // Can't declare war on yourself
         }
@@ -57,7 +62,7 @@ public class WarManager {
             }
         }
         
-        War war = new War(declaringKingdom, targetKingdom, duration);
+        War war = new War(declaringKingdom, targetKingdom, duration, reason, declaredBy);
         activeWars.put(war.getWarId(), war);
         kingdomWars.computeIfAbsent(declaringKingdom, k -> new ArrayList<>()).add(war.getWarId());
         kingdomWars.computeIfAbsent(targetKingdom, k -> new ArrayList<>()).add(war.getWarId());

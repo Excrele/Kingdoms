@@ -50,6 +50,33 @@ public class WorldManager {
                 config.setBufferZone(plugin.getConfig().getInt(path + ".buffer_zone"));
             }
             
+            // Load economy settings
+            if (plugin.getConfig().contains(path + ".economy_enabled")) {
+                config.setEconomyEnabled(plugin.getConfig().getBoolean(path + ".economy_enabled"));
+            }
+            if (plugin.getConfig().contains(path + ".tax_rate")) {
+                config.setTaxRate(plugin.getConfig().getDouble(path + ".tax_rate"));
+            }
+            if (plugin.getConfig().contains(path + ".unclaim_refund")) {
+                config.setUnclaimRefund(plugin.getConfig().getDouble(path + ".unclaim_refund"));
+            }
+            
+            // Load teleportation settings
+            if (plugin.getConfig().contains(path + ".cross_world_teleport")) {
+                config.setCrossWorldTeleportEnabled(plugin.getConfig().getBoolean(path + ".cross_world_teleport"));
+            }
+            if (plugin.getConfig().contains(path + ".allow_teleport_from")) {
+                config.setAllowTeleportFrom(plugin.getConfig().getBoolean(path + ".allow_teleport_from"));
+            }
+            if (plugin.getConfig().contains(path + ".allow_teleport_to")) {
+                config.setAllowTeleportTo(plugin.getConfig().getBoolean(path + ".allow_teleport_to"));
+            }
+            
+            // Load leaderboard settings
+            if (plugin.getConfig().contains(path + ".separate_leaderboards")) {
+                config.setSeparateLeaderboards(plugin.getConfig().getBoolean(path + ".separate_leaderboards"));
+            }
+            
             worldConfigs.put(worldName, config);
         }
     }
@@ -136,6 +163,71 @@ public class WorldManager {
         int currentClaims = getClaimsInWorld(kingdom, world);
         int maxClaims = getMaxClaimsForWorld(kingdom, world);
         return currentClaims < maxClaims;
+    }
+    
+    /**
+     * Get tax rate for a world
+     */
+    public double getTaxRateForWorld(World world) {
+        WorldConfig config = getWorldConfig(world.getName());
+        if (config.getTaxRate() >= 0) {
+            return config.getTaxRate();
+        }
+        // Use default from config
+        return plugin.getConfig().getDouble("economy.tax_rate", 0.05);
+    }
+    
+    /**
+     * Get unclaim refund for a world
+     */
+    public double getUnclaimRefundForWorld(World world) {
+        WorldConfig config = getWorldConfig(world.getName());
+        if (config.getUnclaimRefund() >= 0) {
+            return config.getUnclaimRefund();
+        }
+        // Use default from config
+        return plugin.getConfig().getDouble("economy.unclaim_refund", 50.0);
+    }
+    
+    /**
+     * Check if economy is enabled in a world
+     */
+    public boolean isEconomyEnabled(World world) {
+        WorldConfig config = getWorldConfig(world.getName());
+        return config.isEconomyEnabled();
+    }
+    
+    /**
+     * Check if cross-world teleportation is allowed
+     */
+    public boolean isCrossWorldTeleportEnabled(World fromWorld, World toWorld) {
+        WorldConfig fromConfig = getWorldConfig(fromWorld.getName());
+        WorldConfig toConfig = getWorldConfig(toWorld.getName());
+        
+        // Both worlds must allow cross-world teleportation
+        if (!fromConfig.isCrossWorldTeleportEnabled() || !toConfig.isCrossWorldTeleportEnabled()) {
+            return false;
+        }
+        
+        // Check if teleporting FROM the source world is allowed
+        if (!fromConfig.isAllowTeleportFrom()) {
+            return false;
+        }
+        
+        // Check if teleporting TO the destination world is allowed
+        if (!toConfig.isAllowTeleportTo()) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Check if a world has separate leaderboards
+     */
+    public boolean hasSeparateLeaderboards(World world) {
+        WorldConfig config = getWorldConfig(world.getName());
+        return config.isSeparateLeaderboards();
     }
 }
 

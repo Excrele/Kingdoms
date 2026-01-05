@@ -73,6 +73,13 @@ public class KingdomsPlugin extends JavaPlugin {
     private com.excrele.kingdoms.util.HologramManager hologramManager;
     private com.excrele.kingdoms.manager.ThemeManager themeManager;
     private com.excrele.kingdoms.manager.BannerManager bannerManager;
+    private com.excrele.kingdoms.manager.AdvancedPermissionManager advancedPermissionManager;
+    private com.excrele.kingdoms.manager.OutpostManager outpostManager;
+    private com.excrele.kingdoms.manager.AutomatedKingdomManager automatedKingdomManager;
+    private com.excrele.kingdoms.manager.AdvancedEconomyManager advancedEconomyManager;
+    private com.excrele.kingdoms.manager.EnhancedWarManager enhancedWarManager;
+    private com.excrele.kingdoms.manager.ReputationManager reputationManager;
+    private com.excrele.kingdoms.manager.NotificationManager notificationManager;
     private com.excrele.kingdoms.util.DataCache dataCache;
     private com.excrele.kingdoms.util.ChunkLoadingOptimizer chunkOptimizer;
     private DynmapIntegration dynmapIntegration;
@@ -92,12 +99,18 @@ public class KingdomsPlugin extends JavaPlugin {
         saveDefaultConfig();
         initializeDataFiles();
         initializeManagers();
+        initializeAPI();
         registerCommands();
         registerListeners();
         startTasks();
         registerPlaceholderAPI();
         setupEconomy();
         getLogger().info("KingdomsPlugin enabled!");
+    }
+    
+    private void initializeAPI() {
+        com.excrele.kingdoms.api.KingdomsAPI.initialize(this);
+        getLogger().info("Kingdoms API v" + com.excrele.kingdoms.api.KingdomsAPI.getAPIVersion() + " initialized!");
     }
 
     @Override
@@ -179,6 +192,13 @@ public class KingdomsPlugin extends JavaPlugin {
         hologramManager = new com.excrele.kingdoms.util.HologramManager(this);
         themeManager = new com.excrele.kingdoms.manager.ThemeManager(this);
         bannerManager = new com.excrele.kingdoms.manager.BannerManager(this);
+        advancedPermissionManager = new com.excrele.kingdoms.manager.AdvancedPermissionManager(this);
+        outpostManager = new com.excrele.kingdoms.manager.OutpostManager(this);
+        automatedKingdomManager = new com.excrele.kingdoms.manager.AutomatedKingdomManager(this);
+        advancedEconomyManager = new com.excrele.kingdoms.manager.AdvancedEconomyManager(this);
+        enhancedWarManager = new com.excrele.kingdoms.manager.EnhancedWarManager(this, warManager);
+        reputationManager = new com.excrele.kingdoms.manager.ReputationManager(this);
+        notificationManager = new com.excrele.kingdoms.manager.NotificationManager(this);
         dataCache = new com.excrele.kingdoms.util.DataCache(getConfig().getLong("cache.expiry-time", 300000L)); // 5 minutes
         chunkOptimizer = new com.excrele.kingdoms.util.ChunkLoadingOptimizer(this);
         
@@ -313,6 +333,13 @@ public class KingdomsPlugin extends JavaPlugin {
     public com.excrele.kingdoms.util.HologramManager getHologramManager() { return hologramManager; }
     public com.excrele.kingdoms.manager.ThemeManager getThemeManager() { return themeManager; }
     public com.excrele.kingdoms.manager.BannerManager getBannerManager() { return bannerManager; }
+    public com.excrele.kingdoms.manager.AdvancedPermissionManager getAdvancedPermissionManager() { return advancedPermissionManager; }
+    public com.excrele.kingdoms.manager.OutpostManager getOutpostManager() { return outpostManager; }
+    public com.excrele.kingdoms.manager.AutomatedKingdomManager getAutomatedKingdomManager() { return automatedKingdomManager; }
+    public com.excrele.kingdoms.manager.AdvancedEconomyManager getAdvancedEconomyManager() { return advancedEconomyManager; }
+    public com.excrele.kingdoms.manager.EnhancedWarManager getEnhancedWarManager() { return enhancedWarManager; }
+    public com.excrele.kingdoms.manager.ReputationManager getReputationManager() { return reputationManager; }
+    public com.excrele.kingdoms.manager.NotificationManager getNotificationManager() { return notificationManager; }
     public com.excrele.kingdoms.util.DataCache getDataCache() { return dataCache; }
     public com.excrele.kingdoms.util.ChunkLoadingOptimizer getChunkOptimizer() { return chunkOptimizer; }
     public DynmapIntegration getDynmapIntegration() { return dynmapIntegration; }
@@ -321,4 +348,13 @@ public class KingdomsPlugin extends JavaPlugin {
     public GriefPreventionIntegration getGriefPreventionIntegration() { return griefPreventionIntegration; }
     public DiscordSRVIntegration getDiscordSRVIntegration() { return discordSRVIntegration; }
     public StorageManager getStorageManager() { return storageManager; }
+    
+    /**
+     * Get the Kingdoms API instance.
+     * 
+     * @return The API instance
+     */
+    public com.excrele.kingdoms.api.KingdomsAPI getAPI() {
+        return com.excrele.kingdoms.api.KingdomsAPI.getInstance();
+    }
 }
