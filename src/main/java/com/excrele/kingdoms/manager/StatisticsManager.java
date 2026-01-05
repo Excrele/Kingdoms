@@ -152,7 +152,7 @@ public class StatisticsManager {
         return Math.min(100.0, Math.max(0.0, score));
     }
     
-    private double calculateMemberActivityScore(String kingdomName) {
+    public double calculateMemberActivityScore(String kingdomName) {
         Kingdom kingdom = plugin.getKingdomManager().getKingdom(kingdomName);
         if (kingdom == null) return 0.0;
         
@@ -175,7 +175,7 @@ public class StatisticsManager {
         return totalMembers > 0 ? (activeMembers * 100.0 / totalMembers) : 0.0;
     }
     
-    private double calculateClaimActivityScore(String kingdomName) {
+    public double calculateClaimActivityScore(String kingdomName) {
         double totalScore = 0.0;
         int claimCount = 0;
         
@@ -195,7 +195,7 @@ public class StatisticsManager {
         return claimCount > 0 ? Math.min(100.0, totalScore / claimCount * 10) : 0.0;
     }
     
-    private double calculateGrowthScore(String kingdomName) {
+    public double calculateGrowthScore(String kingdomName) {
         List<GrowthData> data = growthData.get(kingdomName);
         if (data == null || data.size() < 2) return 50.0; // Neutral if no data
         
@@ -217,7 +217,7 @@ public class StatisticsManager {
         return Math.min(100.0, Math.max(0.0, 50.0 + growthRate));
     }
     
-    private double calculateFinancialScore(String kingdomName) {
+    public double calculateFinancialScore(String kingdomName) {
         double balance = plugin.getBankManager().getBalance(kingdomName);
         // Score based on balance (capped at 100)
         return Math.min(100.0, balance / 10000.0 * 100.0);

@@ -55,6 +55,16 @@ public class AutoFeaturesTask extends BukkitRunnable {
         if (tickCount % 6000 == 0 && plugin.getAdvancedFeaturesManager() != null) {
             processFarms(plugin);
         }
+        
+        // Clean cache (every 5 minutes)
+        if (tickCount % 6000 == 0 && plugin.getDataCache() != null) {
+            plugin.getDataCache().cleanExpired();
+        }
+        
+        // Optimize chunk loading (every 2 minutes)
+        if (tickCount % 2400 == 0 && plugin.getChunkOptimizer() != null) {
+            plugin.getChunkOptimizer().unloadDistantChunks();
+        }
     }
     
     private void processFarms(KingdomsPlugin plugin) {

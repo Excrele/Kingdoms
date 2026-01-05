@@ -19,11 +19,21 @@ public class ActivityListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         plugin.getActivityManager().recordLogin(event.getPlayer());
+        
+        // Deliver pending mail
+        if (plugin.getMailManager() != null) {
+            plugin.getMailManager().deliverPendingMail(event.getPlayer());
+        }
     }
     
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         plugin.getActivityManager().recordLogout(event.getPlayer());
+        
+        // Cleanup chunk optimizer data
+        if (plugin.getChunkOptimizer() != null) {
+            plugin.getChunkOptimizer().cleanupPlayer(event.getPlayer().getName());
+        }
     }
 }
 

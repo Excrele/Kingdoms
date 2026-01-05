@@ -344,7 +344,24 @@ public class KingdomManager {
     }
 
     public void addKingdom(Kingdom kingdom) { kingdoms.put(kingdom.getName(), kingdom); }
-    public Kingdom getKingdom(String name) { return kingdoms.get(name); }
+    public Kingdom getKingdom(String name) { 
+        // Try cache first
+        if (plugin.getDataCache() != null) {
+            Kingdom cached = plugin.getDataCache().getCachedKingdom(name);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        
+        Kingdom kingdom = kingdoms.get(name);
+        
+        // Cache the result
+        if (kingdom != null && plugin.getDataCache() != null) {
+            plugin.getDataCache().cacheKingdom(kingdom);
+        }
+        
+        return kingdom;
+    }
     public Map<String, Kingdom> getKingdoms() { return kingdoms; }
     public Kingdom getKingdomByChunk(Chunk chunk) {
         // Try cache first
@@ -366,7 +383,24 @@ public class KingdomManager {
     }
     public Map<String, Kingdom> getClaimedChunks() { return claimedChunks; }
     public void setPlayerKingdom(String player, String kingdomName) { playerToKingdom.put(player, kingdomName); }
-    public String getKingdomOfPlayer(String player) { return playerToKingdom.get(player); }
+    public String getKingdomOfPlayer(String player) { 
+        // Try cache first
+        if (plugin.getDataCache() != null) {
+            String cached = plugin.getDataCache().getCachedPlayerKingdom(player);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        
+        String kingdomName = playerToKingdom.get(player);
+        
+        // Cache the result
+        if (kingdomName != null && plugin.getDataCache() != null) {
+            plugin.getDataCache().cachePlayerKingdom(player, kingdomName);
+        }
+        
+        return kingdomName;
+    }
     public void removePlayerKingdom(String player) { playerToKingdom.remove(player); }
 
     public void claimChunk(Kingdom kingdom, Chunk chunk, List<Chunk> claim) {
@@ -384,6 +418,11 @@ public class KingdomManager {
             kingdom.setCurrentClaimChunks(kingdom.getCurrentClaimChunks() - 1);
             kingdom.getChunkFlags().remove(chunk); // Remove chunk flags
             kingdom.getPlotTypes().remove(chunk); // Remove plot type
+            
+            // Update data cache
+            if (plugin.getDataCache() != null) {
+                plugin.getDataCache().cacheKingdom(kingdom);
+            }
         }
         claimedChunks.remove(key);
         claimCache.remove(chunk); // Remove from cache

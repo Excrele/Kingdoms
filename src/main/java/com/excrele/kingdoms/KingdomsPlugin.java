@@ -59,6 +59,22 @@ public class KingdomsPlugin extends JavaPlugin {
     private AdvancedMemberManager advancedMemberManager;
     private StatisticsManager statisticsManager;
     private AdvancedFeaturesManager advancedFeaturesManager;
+    private com.excrele.kingdoms.manager.AchievementManager achievementManager;
+    private com.excrele.kingdoms.manager.EnhancedLeaderboardManager enhancedLeaderboardManager;
+    private com.excrele.kingdoms.manager.MailManager mailManager;
+    private com.excrele.kingdoms.manager.SiegeManager siegeManager;
+    private com.excrele.kingdoms.manager.RaidManager raidManager;
+    private com.excrele.kingdoms.manager.TaxManager taxManager;
+    private com.excrele.kingdoms.manager.TradeRouteManager tradeRouteManager;
+    private com.excrele.kingdoms.manager.AdvancedChallengeManager advancedChallengeManager;
+    private com.excrele.kingdoms.manager.StructureManager structureManager;
+    private com.excrele.kingdoms.manager.ResourceManager resourceManager;
+    private com.excrele.kingdoms.manager.DiplomacyManager diplomacyManager;
+    private com.excrele.kingdoms.util.HologramManager hologramManager;
+    private com.excrele.kingdoms.manager.ThemeManager themeManager;
+    private com.excrele.kingdoms.manager.BannerManager bannerManager;
+    private com.excrele.kingdoms.util.DataCache dataCache;
+    private com.excrele.kingdoms.util.ChunkLoadingOptimizer chunkOptimizer;
     private DynmapIntegration dynmapIntegration;
     private UnminedIntegration unminedIntegration;
     private WorldGuardIntegration worldGuardIntegration;
@@ -149,6 +165,22 @@ public class KingdomsPlugin extends JavaPlugin {
         advancedMemberManager.setSaveQueue(saveQueue); // Set save queue
         statisticsManager = new StatisticsManager(this);
         advancedFeaturesManager = new AdvancedFeaturesManager(this);
+        achievementManager = new com.excrele.kingdoms.manager.AchievementManager(this);
+        enhancedLeaderboardManager = new com.excrele.kingdoms.manager.EnhancedLeaderboardManager(this);
+        mailManager = new com.excrele.kingdoms.manager.MailManager(this);
+        siegeManager = new com.excrele.kingdoms.manager.SiegeManager(this);
+        raidManager = new com.excrele.kingdoms.manager.RaidManager(this);
+        taxManager = new com.excrele.kingdoms.manager.TaxManager(this);
+        tradeRouteManager = new com.excrele.kingdoms.manager.TradeRouteManager(this);
+        advancedChallengeManager = new com.excrele.kingdoms.manager.AdvancedChallengeManager(this);
+        structureManager = new com.excrele.kingdoms.manager.StructureManager(this);
+        resourceManager = new com.excrele.kingdoms.manager.ResourceManager(this);
+        diplomacyManager = new com.excrele.kingdoms.manager.DiplomacyManager(this);
+        hologramManager = new com.excrele.kingdoms.util.HologramManager(this);
+        themeManager = new com.excrele.kingdoms.manager.ThemeManager(this);
+        bannerManager = new com.excrele.kingdoms.manager.BannerManager(this);
+        dataCache = new com.excrele.kingdoms.util.DataCache(getConfig().getLong("cache.expiry-time", 300000L)); // 5 minutes
+        chunkOptimizer = new com.excrele.kingdoms.util.ChunkLoadingOptimizer(this);
         
         // Initialize integrations
         dynmapIntegration = new DynmapIntegration(this);
@@ -220,6 +252,16 @@ public class KingdomsPlugin extends JavaPlugin {
         long saveInterval = getConfig().getLong("batch-save-interval", 1200L);
         batchSaveTask = new BatchSaveTask(this, saveQueue, saveInterval);
         batchSaveTask.start();
+        
+        // Check for season end every hour (72000 ticks)
+        if (enhancedLeaderboardManager != null) {
+            new org.bukkit.scheduler.BukkitRunnable() {
+                @Override
+                public void run() {
+                    enhancedLeaderboardManager.checkSeasonEnd();
+                }
+            }.runTaskTimer(this, 0L, 72000L);
+        }
     }
 
     private void registerPlaceholderAPI() {
@@ -257,6 +299,22 @@ public class KingdomsPlugin extends JavaPlugin {
     public AdvancedMemberManager getAdvancedMemberManager() { return advancedMemberManager; }
     public StatisticsManager getStatisticsManager() { return statisticsManager; }
     public AdvancedFeaturesManager getAdvancedFeaturesManager() { return advancedFeaturesManager; }
+    public com.excrele.kingdoms.manager.AchievementManager getAchievementManager() { return achievementManager; }
+    public com.excrele.kingdoms.manager.EnhancedLeaderboardManager getEnhancedLeaderboardManager() { return enhancedLeaderboardManager; }
+    public com.excrele.kingdoms.manager.MailManager getMailManager() { return mailManager; }
+    public com.excrele.kingdoms.manager.SiegeManager getSiegeManager() { return siegeManager; }
+    public com.excrele.kingdoms.manager.RaidManager getRaidManager() { return raidManager; }
+    public com.excrele.kingdoms.manager.TaxManager getTaxManager() { return taxManager; }
+    public com.excrele.kingdoms.manager.TradeRouteManager getTradeRouteManager() { return tradeRouteManager; }
+    public com.excrele.kingdoms.manager.AdvancedChallengeManager getAdvancedChallengeManager() { return advancedChallengeManager; }
+    public com.excrele.kingdoms.manager.StructureManager getStructureManager() { return structureManager; }
+    public com.excrele.kingdoms.manager.ResourceManager getResourceManager() { return resourceManager; }
+    public com.excrele.kingdoms.manager.DiplomacyManager getDiplomacyManager() { return diplomacyManager; }
+    public com.excrele.kingdoms.util.HologramManager getHologramManager() { return hologramManager; }
+    public com.excrele.kingdoms.manager.ThemeManager getThemeManager() { return themeManager; }
+    public com.excrele.kingdoms.manager.BannerManager getBannerManager() { return bannerManager; }
+    public com.excrele.kingdoms.util.DataCache getDataCache() { return dataCache; }
+    public com.excrele.kingdoms.util.ChunkLoadingOptimizer getChunkOptimizer() { return chunkOptimizer; }
     public DynmapIntegration getDynmapIntegration() { return dynmapIntegration; }
     public UnminedIntegration getUnminedIntegration() { return unminedIntegration; }
     public WorldGuardIntegration getWorldGuardIntegration() { return worldGuardIntegration; }

@@ -50,6 +50,13 @@ public class WarManager {
             return false;
         }
         
+        // Check diplomacy - non-aggression pacts prevent war
+        if (plugin.getDiplomacyManager() != null) {
+            if (!plugin.getDiplomacyManager().canDeclareWar(declaringKingdom, targetKingdom)) {
+                return false; // Non-aggression pact in place
+            }
+        }
+        
         War war = new War(declaringKingdom, targetKingdom, duration);
         activeWars.put(war.getWarId(), war);
         kingdomWars.computeIfAbsent(declaringKingdom, k -> new ArrayList<>()).add(war.getWarId());

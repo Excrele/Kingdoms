@@ -38,6 +38,11 @@ public interface StorageAdapter {
     
     // Activity tracking
     void savePlayerActivity(String player, String kingdomName, long lastLogin, long playtime);
+    default void savePlayerActivity(String player, String kingdomName, long lastLogin, long playtime, 
+                                     long lastContribution, int contributions, int contributionStreak, long lastStreakDay) {
+        // Default implementation calls the old method for backward compatibility
+        savePlayerActivity(player, kingdomName, lastLogin, playtime);
+    }
     Map<String, Object> loadPlayerActivity(String player);
     List<Map<String, Object>> loadMemberHistory(String kingdomName); // member join/leave history
     
@@ -75,6 +80,75 @@ public interface StorageAdapter {
     
     void saveGrowthData(String kingdomName, long timestamp, int level, int xp, int claims, int members, int alliances);
     List<Map<String, Object>> loadGrowthData(String kingdomName);
+    
+    // Achievement operations
+    void savePlayerAchievement(String kingdomName, String playerName, String achievementId, String achievementName, 
+                               String description, long unlockedAt, String unlockedBy, int progress, int target, boolean completed);
+    List<Map<String, Object>> loadPlayerAchievements(String kingdomName, String playerName);
+    
+    // Mail operations
+    void saveMail(String mailId, String recipient, String sender, String kingdomName, String subject, 
+                  String message, long sentAt, boolean read, long readAt, boolean deleted);
+    List<Map<String, Object>> loadPlayerMail(String playerName);
+    void deleteMail(String mailId);
+    
+    // Siege operations
+    void saveSiege(String siegeId, String warId, String attackingKingdom, String defendingKingdom,
+                   String worldName, int chunkX, int chunkZ, long startTime, long endTime,
+                   int attackProgress, boolean active);
+    List<Map<String, Object>> loadActiveSieges();
+    
+    // Raid operations
+    void saveRaid(String raidId, String raidingKingdom, String targetKingdom,
+                  String worldName, int chunkX, int chunkZ, long startTime, long endTime,
+                  int resourcesStolen, boolean active);
+    List<Map<String, Object>> loadActiveRaids();
+    
+    // Tax operations
+    void saveTaxSettings(String kingdomName, double taxRate, long taxInterval, long lastCollection);
+    Map<String, Object> loadTaxSettings(String kingdomName);
+    
+    // Trade route operations
+    void saveTradeRoute(String routeId, String kingdom1, String kingdom2,
+                       String world1, double x1, double y1, double z1,
+                       String world2, double x2, double y2, double z2,
+                       long establishedAt, boolean active, double tradeVolume,
+                       int tradeCount, long lastTradeTime);
+    List<Map<String, Object>> loadTradeRoutes();
+    
+    // Advanced challenge operations
+    void saveAdvancedChallenge(String challengeId, String name, String description, String type,
+                              int difficulty, int xpReward, long startTime, long endTime,
+                              int requiredMembers, String chainId, int chainOrder, boolean active);
+    List<Map<String, Object>> loadAdvancedChallenges();
+    
+    // Kingdom structure operations
+    void saveKingdomStructure(String structureId, String kingdomName, String type,
+                             String worldName, double x, double y, double z,
+                             long builtAt, int level, boolean active);
+    List<Map<String, Object>> loadKingdomStructures();
+    
+    // Resource management operations
+    void saveKingdomResource(String kingdomName, String resourceType, int amount);
+    List<Map<String, Object>> loadKingdomResources();
+    
+    // Diplomacy operations
+    void saveDiplomaticAgreement(String agreementId, String kingdom1, String kingdom2,
+                                String type, long establishedAt, long expiresAt,
+                                boolean active, String terms);
+    List<Map<String, Object>> loadDiplomaticAgreements();
+    
+    // Theme operations
+    void saveKingdomTheme(String kingdomName, String primaryColor, String secondaryColor,
+                         String accentColor, String bannerMaterial, String flagMaterial,
+                         String primaryParticle, String secondaryParticle, String themeName);
+    List<Map<String, Object>> loadKingdomThemes();
+    
+    // Banner operations
+    void saveKingdomBanner(String bannerId, String kingdomName, String worldName,
+                          double x, double y, double z, String bannerMaterial);
+    void deleteKingdomBanner(String bannerId);
+    List<Map<String, Object>> loadKingdomBanners();
     
     // Initialize and cleanup
     void initialize();

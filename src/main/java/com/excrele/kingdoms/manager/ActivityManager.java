@@ -48,6 +48,8 @@ public class ActivityManager {
             activity.addPlaytime((Long) data.getOrDefault("playtime", 0L));
             activity.setLastContribution((Long) data.getOrDefault("lastContribution", System.currentTimeMillis() / 1000));
             activity.setContributions(((Number) data.getOrDefault("contributions", 0)).intValue());
+            activity.setContributionStreak(((Number) data.getOrDefault("contributionStreak", 0)).intValue());
+            activity.setLastStreakDay(((Number) data.getOrDefault("lastStreakDay", System.currentTimeMillis() / 1000 / (24 * 60 * 60))).longValue());
             activities.put(playerName, activity);
         } else {
             // Create new activity
@@ -103,6 +105,12 @@ public class ActivityManager {
         if (activity != null) {
             activity.updateLastContribution();
             saveActivity(activity);
+            
+            // Check achievements after contribution
+            String kingdomName = plugin.getKingdomManager().getKingdomOfPlayer(playerName);
+            if (kingdomName != null && plugin.getAchievementManager() != null) {
+                plugin.getAchievementManager().checkAchievements(kingdomName, playerName);
+            }
         }
     }
     
@@ -167,8 +175,20 @@ public class ActivityManager {
             activity.getPlayerName(),
             activity.getKingdomName(),
             activity.getLastLogin(),
-            activity.getTotalPlaytime()
+            activity.getTotalPlaytime(),
+            activity.getLastContribution(),
+            activity.getContributions(),
+            activity.getContributionStreak(),
+            activity.getLastStreakDay()
         );
+    }
+    
+    /**
+     * Get contribution streak for a player
+     */
+    public int getContributionStreak(String playerName) {
+        PlayerActivity activity = activities.get(playerName);
+        return activity != null ? activity.getContributionStreak() : 0;
     }
     
     /**

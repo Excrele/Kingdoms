@@ -51,6 +51,11 @@ public class Kingdom {
     public String getKing() { return king; }
     public List<String> getMembers() { return members; }
     public void addMember(String player) { members.add(player); }
+    public List<String> getAllMembers() {
+        List<String> all = new ArrayList<>(members);
+        all.add(king);
+        return all;
+    }
     public Map<Chunk, String> getPlotTypes() { return plotTypes; }
     public void setPlotType(Chunk chunk, String type) { plotTypes.put(chunk, type); }
     public Map<String, String> getFlags() { return new HashMap<>(); } // Deprecated, use chunkFlags

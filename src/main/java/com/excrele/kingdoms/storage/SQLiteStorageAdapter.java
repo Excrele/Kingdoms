@@ -122,8 +122,68 @@ public class SQLiteStorageAdapter implements StorageAdapter {
                 "player TEXT PRIMARY KEY, " +
                 "kingdom_name TEXT, " +
                 "last_login INTEGER, " +
-                "playtime INTEGER DEFAULT 0" +
+                "playtime INTEGER DEFAULT 0, " +
+                "last_contribution INTEGER DEFAULT 0, " +
+                "contributions INTEGER DEFAULT 0, " +
+                "contribution_streak INTEGER DEFAULT 0, " +
+                "last_streak_day INTEGER DEFAULT 0" +
                 ")");
+            
+            // Add new columns if they don't exist (for existing databases)
+            try {
+                stmt.executeUpdate("ALTER TABLE player_activity ADD COLUMN last_contribution INTEGER DEFAULT 0");
+            } catch (SQLException e) {
+                // Column already exists, ignore
+            }
+            try {
+                stmt.executeUpdate("ALTER TABLE player_activity ADD COLUMN contributions INTEGER DEFAULT 0");
+            } catch (SQLException e) {
+                // Column already exists, ignore
+            }
+            try {
+                stmt.executeUpdate("ALTER TABLE player_activity ADD COLUMN contribution_streak INTEGER DEFAULT 0");
+            } catch (SQLException e) {
+                // Column already exists, ignore
+            }
+            try {
+                stmt.executeUpdate("ALTER TABLE player_activity ADD COLUMN last_streak_day INTEGER DEFAULT 0");
+            } catch (SQLException e) {
+                // Column already exists, ignore
+            }
+            
+            // Achievements table
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS player_achievements (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "kingdom_name TEXT, " +
+                "player TEXT, " +
+                "achievement_id TEXT, " +
+                "achievement_name TEXT, " +
+                "description TEXT, " +
+                "unlocked_at INTEGER DEFAULT 0, " +
+                "unlocked_by TEXT, " +
+                "progress INTEGER DEFAULT 0, " +
+                "target INTEGER DEFAULT 0, " +
+                "completed INTEGER DEFAULT 0, " +
+                "UNIQUE(kingdom_name, player, achievement_id)" +
+                ")");
+            
+            // Mail table
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS kingdom_mail (" +
+                "mail_id TEXT PRIMARY KEY, " +
+                "recipient TEXT, " +
+                "sender TEXT, " +
+                "kingdom_name TEXT, " +
+                "subject TEXT, " +
+                "message TEXT, " +
+                "sent_at INTEGER, " +
+                "read INTEGER DEFAULT 0, " +
+                "read_at INTEGER DEFAULT 0, " +
+                "deleted INTEGER DEFAULT 0" +
+                ")");
+            
+            // Create indexes for better performance
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_mail_recipient ON kingdom_mail(recipient)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_mail_sender ON kingdom_mail(sender)");
         }
     }
 
@@ -438,6 +498,25 @@ public class SQLiteStorageAdapter implements StorageAdapter {
             plugin.getLogger().severe("Failed to save player activity to SQLite: " + e.getMessage());
         }
     }
+    
+    @Override
+    public void savePlayerActivity(String player, String kingdomName, long lastLogin, long playtime, 
+                                     long lastContribution, int contributions, int contributionStreak, long lastStreakDay) {
+        try (PreparedStatement stmt = connection.prepareStatement(
+            "INSERT OR REPLACE INTO player_activity (player, kingdom_name, last_login, playtime, last_contribution, contributions, contribution_streak, last_streak_day) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+            stmt.setString(1, player);
+            stmt.setString(2, kingdomName);
+            stmt.setLong(3, lastLogin);
+            stmt.setLong(4, playtime);
+            stmt.setLong(5, lastContribution);
+            stmt.setInt(6, contributions);
+            stmt.setInt(7, contributionStreak);
+            stmt.setLong(8, lastStreakDay);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to save player activity to SQLite: " + e.getMessage());
+        }
+    }
 
     @Override
     public Map<String, Object> loadPlayerActivity(String player) {
@@ -449,6 +528,19 @@ public class SQLiteStorageAdapter implements StorageAdapter {
                 activity.put("kingdom", rs.getString("kingdom_name"));
                 activity.put("lastLogin", rs.getLong("last_login"));
                 activity.put("playtime", rs.getLong("playtime"));
+                try {
+                    activity.put("lastContribution", rs.getLong("last_contribution"));
+                    activity.put("contributions", rs.getInt("contributions"));
+                    activity.put("contributionStreak", rs.getInt("contribution_streak"));
+                    activity.put("lastStreakDay", rs.getLong("last_streak_day"));
+                } catch (SQLException e) {
+                    // Columns might not exist in old databases
+                    long currentDay = System.currentTimeMillis() / 1000 / (24 * 60 * 60);
+                    activity.put("lastContribution", System.currentTimeMillis() / 1000);
+                    activity.put("contributions", 0);
+                    activity.put("contributionStreak", 0);
+                    activity.put("lastStreakDay", currentDay);
+                }
                 return activity;
             }
         } catch (SQLException e) {
@@ -587,6 +679,238 @@ public class SQLiteStorageAdapter implements StorageAdapter {
     @Override
     public List<Map<String, Object>> loadGrowthData(String kingdomName) {
         // TODO: Implement growth data loading from SQLite
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void savePlayerAchievement(String kingdomName, String playerName, String achievementId, String achievementName, 
+                                      String description, long unlockedAt, String unlockedBy, int progress, int target, boolean completed) {
+        try (PreparedStatement stmt = connection.prepareStatement(
+            "INSERT OR REPLACE INTO player_achievements (kingdom_name, player, achievement_id, achievement_name, description, unlocked_at, unlocked_by, progress, target, completed) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            stmt.setString(1, kingdomName);
+            stmt.setString(2, playerName);
+            stmt.setString(3, achievementId);
+            stmt.setString(4, achievementName);
+            stmt.setString(5, description);
+            stmt.setLong(6, unlockedAt);
+            stmt.setString(7, unlockedBy);
+            stmt.setInt(8, progress);
+            stmt.setInt(9, target);
+            stmt.setInt(10, completed ? 1 : 0);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to save player achievement to SQLite: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> loadPlayerAchievements(String kingdomName, String playerName) {
+        List<Map<String, Object>> achievements = new ArrayList<>();
+        try (PreparedStatement stmt = connection.prepareStatement(
+            "SELECT * FROM player_achievements WHERE kingdom_name=? AND player=?")) {
+            stmt.setString(1, kingdomName);
+            stmt.setString(2, playerName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> achievement = new HashMap<>();
+                    achievement.put("id", rs.getString("achievement_id"));
+                    achievement.put("name", rs.getString("achievement_name"));
+                    achievement.put("description", rs.getString("description"));
+                    achievement.put("unlockedAt", rs.getLong("unlocked_at"));
+                    achievement.put("unlockedBy", rs.getString("unlocked_by"));
+                    achievement.put("progress", rs.getInt("progress"));
+                    achievement.put("target", rs.getInt("target"));
+                    achievement.put("completed", rs.getInt("completed") == 1);
+                    achievements.add(achievement);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to load player achievements from SQLite: " + e.getMessage());
+        }
+        return achievements;
+    }
+
+    @Override
+    public void saveMail(String mailId, String recipient, String sender, String kingdomName, String subject, 
+                         String message, long sentAt, boolean read, long readAt, boolean deleted) {
+        try (PreparedStatement stmt = connection.prepareStatement(
+            "INSERT OR REPLACE INTO kingdom_mail (mail_id, recipient, sender, kingdom_name, subject, message, sent_at, read, read_at, deleted) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            stmt.setString(1, mailId);
+            stmt.setString(2, recipient);
+            stmt.setString(3, sender);
+            stmt.setString(4, kingdomName);
+            stmt.setString(5, subject);
+            stmt.setString(6, message);
+            stmt.setLong(7, sentAt);
+            stmt.setInt(8, read ? 1 : 0);
+            stmt.setLong(9, readAt);
+            stmt.setInt(10, deleted ? 1 : 0);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to save mail to SQLite: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> loadPlayerMail(String playerName) {
+        List<Map<String, Object>> mailList = new ArrayList<>();
+        try (PreparedStatement stmt = connection.prepareStatement(
+            "SELECT * FROM kingdom_mail WHERE recipient=? ORDER BY sent_at DESC")) {
+            stmt.setString(1, playerName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> mail = new HashMap<>();
+                    mail.put("mailId", rs.getString("mail_id"));
+                    mail.put("recipient", rs.getString("recipient"));
+                    mail.put("sender", rs.getString("sender"));
+                    mail.put("kingdomName", rs.getString("kingdom_name"));
+                    mail.put("subject", rs.getString("subject"));
+                    mail.put("message", rs.getString("message"));
+                    mail.put("sentAt", rs.getLong("sent_at"));
+                    mail.put("read", rs.getInt("read") == 1);
+                    mail.put("readAt", rs.getLong("read_at"));
+                    mail.put("deleted", rs.getInt("deleted") == 1);
+                    mailList.add(mail);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to load player mail from SQLite: " + e.getMessage());
+        }
+        return mailList;
+    }
+
+    @Override
+    public void deleteMail(String mailId) {
+        try (PreparedStatement stmt = connection.prepareStatement(
+            "DELETE FROM kingdom_mail WHERE mail_id=?")) {
+            stmt.setString(1, mailId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to delete mail from SQLite: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void saveSiege(String siegeId, String warId, String attackingKingdom, String defendingKingdom,
+                          String worldName, int chunkX, int chunkZ, long startTime, long endTime,
+                          int attackProgress, boolean active) {
+        // TODO: Implement SQLite siege storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadActiveSieges() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveRaid(String raidId, String raidingKingdom, String targetKingdom,
+                         String worldName, int chunkX, int chunkZ, long startTime, long endTime,
+                         int resourcesStolen, boolean active) {
+        // TODO: Implement SQLite raid storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadActiveRaids() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveTaxSettings(String kingdomName, double taxRate, long taxInterval, long lastCollection) {
+        // TODO: Implement SQLite tax storage
+    }
+
+    @Override
+    public Map<String, Object> loadTaxSettings(String kingdomName) {
+        return new HashMap<>();
+    }
+
+    @Override
+    public void saveTradeRoute(String routeId, String kingdom1, String kingdom2,
+                              String world1, double x1, double y1, double z1,
+                              String world2, double x2, double y2, double z2,
+                              long establishedAt, boolean active, double tradeVolume,
+                              int tradeCount, long lastTradeTime) {
+        // TODO: Implement SQLite trade route storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadTradeRoutes() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveAdvancedChallenge(String challengeId, String name, String description, String type,
+                                     int difficulty, int xpReward, long startTime, long endTime,
+                                     int requiredMembers, String chainId, int chainOrder, boolean active) {
+        // TODO: Implement SQLite advanced challenge storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadAdvancedChallenges() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveKingdomStructure(String structureId, String kingdomName, String type,
+                                    String worldName, double x, double y, double z,
+                                    long builtAt, int level, boolean active) {
+        // TODO: Implement SQLite structure storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomStructures() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveKingdomResource(String kingdomName, String resourceType, int amount) {
+        // TODO: Implement SQLite resource storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomResources() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveDiplomaticAgreement(String agreementId, String kingdom1, String kingdom2,
+                                       String type, long establishedAt, long expiresAt,
+                                       boolean active, String terms) {
+        // TODO: Implement SQLite diplomacy storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadDiplomaticAgreements() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveKingdomTheme(String kingdomName, String primaryColor, String secondaryColor,
+                                String accentColor, String bannerMaterial, String flagMaterial,
+                                String primaryParticle, String secondaryParticle, String themeName) {
+        // TODO: Implement SQLite theme storage
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomThemes() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void saveKingdomBanner(String bannerId, String kingdomName, String worldName,
+                                 double x, double y, double z, String bannerMaterial) {
+        // TODO: Implement SQLite banner storage
+    }
+
+    @Override
+    public void deleteKingdomBanner(String bannerId) {
+        // TODO: Implement SQLite banner deletion
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomBanners() {
         return new ArrayList<>();
     }
 

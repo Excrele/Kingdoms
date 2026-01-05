@@ -47,10 +47,29 @@ public class PlayerMoveListener implements Listener {
             
             if (kingdom != null) {
                 String playerKingdom = plugin.getKingdomManager().getKingdomOfPlayer(player.getName());
-                // Show VILLAGER_HAPPY for own kingdom, SMOKE for others
-                Particle particle = (playerKingdom != null && playerKingdom.equals(kingdom.getName())) ?
-                        Particle.HAPPY_VILLAGER : Particle.SMOKE;
+                
+                // Use theme particles if available
+                Particle particle;
+                if (plugin.getThemeManager() != null) {
+                    com.excrele.kingdoms.model.KingdomTheme theme = 
+                        plugin.getThemeManager().getTheme(kingdom.getName());
+                    if (playerKingdom != null && playerKingdom.equals(kingdom.getName())) {
+                        particle = theme.getPrimaryParticle();
+                    } else {
+                        particle = theme.getSecondaryParticle();
+                    }
+                } else {
+                    // Fallback to default
+                    particle = (playerKingdom != null && playerKingdom.equals(kingdom.getName())) ?
+                            Particle.HAPPY_VILLAGER : Particle.SMOKE;
+                }
+                
                 displayChunkBorder(player, currentChunk, particle);
+                
+                // Preload nearby chunks for optimization
+                if (plugin.getChunkOptimizer() != null) {
+                    plugin.getChunkOptimizer().preloadChunksAroundPlayer(player, 2);
+                }
                 
                 // Record claim visit for statistics
                 if (plugin.getStatisticsManager() != null) {

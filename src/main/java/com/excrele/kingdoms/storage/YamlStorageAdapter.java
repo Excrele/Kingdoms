@@ -292,6 +292,20 @@ public class YamlStorageAdapter implements StorageAdapter {
         activityConfig.set(path + ".playtime", playtime);
         saveFile(activityConfig, activityFile);
     }
+    
+    @Override
+    public void savePlayerActivity(String player, String kingdomName, long lastLogin, long playtime, 
+                                     long lastContribution, int contributions, int contributionStreak, long lastStreakDay) {
+        String path = "activity." + player;
+        activityConfig.set(path + ".kingdom", kingdomName);
+        activityConfig.set(path + ".lastLogin", lastLogin);
+        activityConfig.set(path + ".playtime", playtime);
+        activityConfig.set(path + ".lastContribution", lastContribution);
+        activityConfig.set(path + ".contributions", contributions);
+        activityConfig.set(path + ".contributionStreak", contributionStreak);
+        activityConfig.set(path + ".lastStreakDay", lastStreakDay);
+        saveFile(activityConfig, activityFile);
+    }
 
     @Override
     public Map<String, Object> loadPlayerActivity(String player) {
@@ -303,6 +317,9 @@ public class YamlStorageAdapter implements StorageAdapter {
         activity.put("playtime", activityConfig.getLong(path + ".playtime"));
         activity.put("lastContribution", activityConfig.getLong(path + ".lastContribution", System.currentTimeMillis() / 1000));
         activity.put("contributions", activityConfig.getInt(path + ".contributions", 0));
+        activity.put("contributionStreak", activityConfig.getInt(path + ".contributionStreak", 0));
+        long currentDay = System.currentTimeMillis() / 1000 / (24 * 60 * 60);
+        activity.put("lastStreakDay", activityConfig.getLong(path + ".lastStreakDay", currentDay));
         return activity;
     }
 
@@ -678,6 +695,598 @@ public class YamlStorageAdapter implements StorageAdapter {
             }
         }
         return growth;
+    }
+
+    @Override
+    public void savePlayerAchievement(String kingdomName, String playerName, String achievementId, String achievementName, 
+                                      String description, long unlockedAt, String unlockedBy, int progress, int target, boolean completed) {
+        String path = "achievements." + kingdomName + "." + playerName + "." + achievementId;
+        File achievementFile = new File(plugin.getDataFolder(), "achievements.yml");
+        FileConfiguration achievementConfig = YamlConfiguration.loadConfiguration(achievementFile);
+        
+        achievementConfig.set(path + ".id", achievementId);
+        achievementConfig.set(path + ".name", achievementName);
+        achievementConfig.set(path + ".description", description);
+        achievementConfig.set(path + ".unlockedAt", unlockedAt);
+        achievementConfig.set(path + ".unlockedBy", unlockedBy);
+        achievementConfig.set(path + ".progress", progress);
+        achievementConfig.set(path + ".target", target);
+        achievementConfig.set(path + ".completed", completed);
+        
+        saveFile(achievementConfig, achievementFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadPlayerAchievements(String kingdomName, String playerName) {
+        List<Map<String, Object>> achievements = new ArrayList<>();
+        File achievementFile = new File(plugin.getDataFolder(), "achievements.yml");
+        if (!achievementFile.exists()) return achievements;
+        
+        FileConfiguration achievementConfig = YamlConfiguration.loadConfiguration(achievementFile);
+        String path = "achievements." + kingdomName + "." + playerName;
+        
+        if (achievementConfig.contains(path)) {
+            org.bukkit.configuration.ConfigurationSection playerSection = achievementConfig.getConfigurationSection(path);
+            if (playerSection != null) {
+                for (String achievementId : playerSection.getKeys(false)) {
+                    Map<String, Object> achievement = new HashMap<>();
+                    achievement.put("id", achievementConfig.getString(path + "." + achievementId + ".id"));
+                    achievement.put("name", achievementConfig.getString(path + "." + achievementId + ".name"));
+                    achievement.put("description", achievementConfig.getString(path + "." + achievementId + ".description"));
+                    achievement.put("unlockedAt", achievementConfig.getLong(path + "." + achievementId + ".unlockedAt", 0));
+                    achievement.put("unlockedBy", achievementConfig.getString(path + "." + achievementId + ".unlockedBy"));
+                    achievement.put("progress", achievementConfig.getInt(path + "." + achievementId + ".progress", 0));
+                    achievement.put("target", achievementConfig.getInt(path + "." + achievementId + ".target", 0));
+                    achievement.put("completed", achievementConfig.getBoolean(path + "." + achievementId + ".completed", false));
+                    achievements.add(achievement);
+                }
+            }
+        }
+        return achievements;
+    }
+
+    @Override
+    public void saveMail(String mailId, String recipient, String sender, String kingdomName, String subject, 
+                         String message, long sentAt, boolean read, long readAt, boolean deleted) {
+        File mailFile = new File(plugin.getDataFolder(), "mail.yml");
+        FileConfiguration mailConfig = YamlConfiguration.loadConfiguration(mailFile);
+        
+        String path = "mail." + recipient + "." + mailId;
+        mailConfig.set(path + ".mailId", mailId);
+        mailConfig.set(path + ".recipient", recipient);
+        mailConfig.set(path + ".sender", sender);
+        mailConfig.set(path + ".kingdomName", kingdomName);
+        mailConfig.set(path + ".subject", subject);
+        mailConfig.set(path + ".message", message);
+        mailConfig.set(path + ".sentAt", sentAt);
+        mailConfig.set(path + ".read", read);
+        mailConfig.set(path + ".readAt", readAt);
+        mailConfig.set(path + ".deleted", deleted);
+        
+        saveFile(mailConfig, mailFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadPlayerMail(String playerName) {
+        List<Map<String, Object>> mailList = new ArrayList<>();
+        File mailFile = new File(plugin.getDataFolder(), "mail.yml");
+        if (!mailFile.exists()) return mailList;
+        
+        FileConfiguration mailConfig = YamlConfiguration.loadConfiguration(mailFile);
+        String path = "mail." + playerName;
+        
+        if (mailConfig.contains(path)) {
+            org.bukkit.configuration.ConfigurationSection playerSection = mailConfig.getConfigurationSection(path);
+            if (playerSection != null) {
+                for (String mailId : playerSection.getKeys(false)) {
+                    Map<String, Object> mail = new HashMap<>();
+                    mail.put("mailId", mailConfig.getString(path + "." + mailId + ".mailId"));
+                    mail.put("recipient", mailConfig.getString(path + "." + mailId + ".recipient"));
+                    mail.put("sender", mailConfig.getString(path + "." + mailId + ".sender"));
+                    mail.put("kingdomName", mailConfig.getString(path + "." + mailId + ".kingdomName"));
+                    mail.put("subject", mailConfig.getString(path + "." + mailId + ".subject"));
+                    mail.put("message", mailConfig.getString(path + "." + mailId + ".message"));
+                    mail.put("sentAt", mailConfig.getLong(path + "." + mailId + ".sentAt", System.currentTimeMillis() / 1000));
+                    mail.put("read", mailConfig.getBoolean(path + "." + mailId + ".read", false));
+                    mail.put("readAt", mailConfig.getLong(path + "." + mailId + ".readAt", 0));
+                    mail.put("deleted", mailConfig.getBoolean(path + "." + mailId + ".deleted", false));
+                    mailList.add(mail);
+                }
+            }
+        }
+        return mailList;
+    }
+
+    @Override
+    public void deleteMail(String mailId) {
+        File mailFile = new File(plugin.getDataFolder(), "mail.yml");
+        if (!mailFile.exists()) return;
+        
+        FileConfiguration mailConfig = YamlConfiguration.loadConfiguration(mailFile);
+        
+        // Find and delete mail by ID
+        if (mailConfig.contains("mail")) {
+            org.bukkit.configuration.ConfigurationSection mailSection = mailConfig.getConfigurationSection("mail");
+            if (mailSection != null) {
+                for (String recipient : mailSection.getKeys(false)) {
+                    String path = "mail." + recipient + "." + mailId;
+                    if (mailConfig.contains(path)) {
+                        mailConfig.set(path, null);
+                        saveFile(mailConfig, mailFile);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void saveSiege(String siegeId, String warId, String attackingKingdom, String defendingKingdom,
+                          String worldName, int chunkX, int chunkZ, long startTime, long endTime,
+                          int attackProgress, boolean active) {
+        File siegeFile = new File(plugin.getDataFolder(), "sieges.yml");
+        FileConfiguration siegeConfig = YamlConfiguration.loadConfiguration(siegeFile);
+        String path = "sieges." + siegeId;
+        siegeConfig.set(path + ".siegeId", siegeId);
+        siegeConfig.set(path + ".warId", warId);
+        siegeConfig.set(path + ".attackingKingdom", attackingKingdom);
+        siegeConfig.set(path + ".defendingKingdom", defendingKingdom);
+        siegeConfig.set(path + ".worldName", worldName);
+        siegeConfig.set(path + ".chunkX", chunkX);
+        siegeConfig.set(path + ".chunkZ", chunkZ);
+        siegeConfig.set(path + ".startTime", startTime);
+        siegeConfig.set(path + ".endTime", endTime);
+        siegeConfig.set(path + ".attackProgress", attackProgress);
+        siegeConfig.set(path + ".active", active);
+        saveFile(siegeConfig, siegeFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadActiveSieges() {
+        List<Map<String, Object>> sieges = new ArrayList<>();
+        File siegeFile = new File(plugin.getDataFolder(), "sieges.yml");
+        if (!siegeFile.exists()) return sieges;
+        FileConfiguration siegeConfig = YamlConfiguration.loadConfiguration(siegeFile);
+        if (siegeConfig.contains("sieges")) {
+            org.bukkit.configuration.ConfigurationSection siegesSection = siegeConfig.getConfigurationSection("sieges");
+            if (siegesSection != null) {
+                for (String siegeId : siegesSection.getKeys(false)) {
+                    String path = "sieges." + siegeId;
+                    Map<String, Object> siege = new HashMap<>();
+                    siege.put("siegeId", siegeConfig.getString(path + ".siegeId"));
+                    siege.put("warId", siegeConfig.getString(path + ".warId"));
+                    siege.put("attackingKingdom", siegeConfig.getString(path + ".attackingKingdom"));
+                    siege.put("defendingKingdom", siegeConfig.getString(path + ".defendingKingdom"));
+                    siege.put("worldName", siegeConfig.getString(path + ".worldName"));
+                    siege.put("chunkX", siegeConfig.getInt(path + ".chunkX"));
+                    siege.put("chunkZ", siegeConfig.getInt(path + ".chunkZ"));
+                    siege.put("startTime", siegeConfig.getLong(path + ".startTime"));
+                    siege.put("endTime", siegeConfig.getLong(path + ".endTime"));
+                    siege.put("attackProgress", siegeConfig.getInt(path + ".attackProgress"));
+                    siege.put("active", siegeConfig.getBoolean(path + ".active"));
+                    sieges.add(siege);
+                }
+            }
+        }
+        return sieges;
+    }
+
+    @Override
+    public void saveRaid(String raidId, String raidingKingdom, String targetKingdom,
+                        String worldName, int chunkX, int chunkZ, long startTime, long endTime,
+                        int resourcesStolen, boolean active) {
+        File raidFile = new File(plugin.getDataFolder(), "raids.yml");
+        FileConfiguration raidConfig = YamlConfiguration.loadConfiguration(raidFile);
+        String path = "raids." + raidId;
+        raidConfig.set(path + ".raidId", raidId);
+        raidConfig.set(path + ".raidingKingdom", raidingKingdom);
+        raidConfig.set(path + ".targetKingdom", targetKingdom);
+        raidConfig.set(path + ".worldName", worldName);
+        raidConfig.set(path + ".chunkX", chunkX);
+        raidConfig.set(path + ".chunkZ", chunkZ);
+        raidConfig.set(path + ".startTime", startTime);
+        raidConfig.set(path + ".endTime", endTime);
+        raidConfig.set(path + ".resourcesStolen", resourcesStolen);
+        raidConfig.set(path + ".active", active);
+        saveFile(raidConfig, raidFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadActiveRaids() {
+        List<Map<String, Object>> raids = new ArrayList<>();
+        File raidFile = new File(plugin.getDataFolder(), "raids.yml");
+        if (!raidFile.exists()) return raids;
+        FileConfiguration raidConfig = YamlConfiguration.loadConfiguration(raidFile);
+        if (raidConfig.contains("raids")) {
+            org.bukkit.configuration.ConfigurationSection raidsSection = raidConfig.getConfigurationSection("raids");
+            if (raidsSection != null) {
+                for (String raidId : raidsSection.getKeys(false)) {
+                    String path = "raids." + raidId;
+                    Map<String, Object> raid = new HashMap<>();
+                    raid.put("raidId", raidConfig.getString(path + ".raidId"));
+                    raid.put("raidingKingdom", raidConfig.getString(path + ".raidingKingdom"));
+                    raid.put("targetKingdom", raidConfig.getString(path + ".targetKingdom"));
+                    raid.put("worldName", raidConfig.getString(path + ".worldName"));
+                    raid.put("chunkX", raidConfig.getInt(path + ".chunkX"));
+                    raid.put("chunkZ", raidConfig.getInt(path + ".chunkZ"));
+                    raid.put("startTime", raidConfig.getLong(path + ".startTime"));
+                    raid.put("endTime", raidConfig.getLong(path + ".endTime"));
+                    raid.put("resourcesStolen", raidConfig.getInt(path + ".resourcesStolen"));
+                    raid.put("active", raidConfig.getBoolean(path + ".active"));
+                    raids.add(raid);
+                }
+            }
+        }
+        return raids;
+    }
+
+    @Override
+    public void saveTaxSettings(String kingdomName, double taxRate, long taxInterval, long lastCollection) {
+        File taxFile = new File(plugin.getDataFolder(), "tax.yml");
+        FileConfiguration taxConfig = YamlConfiguration.loadConfiguration(taxFile);
+        String path = "tax." + kingdomName;
+        taxConfig.set(path + ".taxRate", taxRate);
+        taxConfig.set(path + ".taxInterval", taxInterval);
+        taxConfig.set(path + ".lastCollection", lastCollection);
+        saveFile(taxConfig, taxFile);
+    }
+
+    @Override
+    public Map<String, Object> loadTaxSettings(String kingdomName) {
+        Map<String, Object> settings = new HashMap<>();
+        File taxFile = new File(plugin.getDataFolder(), "tax.yml");
+        if (!taxFile.exists()) return settings;
+        FileConfiguration taxConfig = YamlConfiguration.loadConfiguration(taxFile);
+        String path = "tax." + kingdomName;
+        if (taxConfig.contains(path)) {
+            settings.put("taxRate", taxConfig.getDouble(path + ".taxRate", 5.0));
+            settings.put("taxInterval", taxConfig.getLong(path + ".taxInterval", 86400L));
+            settings.put("lastCollection", taxConfig.getLong(path + ".lastCollection", System.currentTimeMillis() / 1000));
+        }
+        return settings;
+    }
+
+    @Override
+    public void saveTradeRoute(String routeId, String kingdom1, String kingdom2,
+                              String world1, double x1, double y1, double z1,
+                              String world2, double x2, double y2, double z2,
+                              long establishedAt, boolean active, double tradeVolume,
+                              int tradeCount, long lastTradeTime) {
+        File routeFile = new File(plugin.getDataFolder(), "trade_routes.yml");
+        FileConfiguration routeConfig = YamlConfiguration.loadConfiguration(routeFile);
+        String path = "routes." + routeId;
+        routeConfig.set(path + ".routeId", routeId);
+        routeConfig.set(path + ".kingdom1", kingdom1);
+        routeConfig.set(path + ".kingdom2", kingdom2);
+        routeConfig.set(path + ".world1", world1);
+        routeConfig.set(path + ".x1", x1);
+        routeConfig.set(path + ".y1", y1);
+        routeConfig.set(path + ".z1", z1);
+        routeConfig.set(path + ".world2", world2);
+        routeConfig.set(path + ".x2", x2);
+        routeConfig.set(path + ".y2", y2);
+        routeConfig.set(path + ".z2", z2);
+        routeConfig.set(path + ".establishedAt", establishedAt);
+        routeConfig.set(path + ".active", active);
+        routeConfig.set(path + ".tradeVolume", tradeVolume);
+        routeConfig.set(path + ".tradeCount", tradeCount);
+        routeConfig.set(path + ".lastTradeTime", lastTradeTime);
+        saveFile(routeConfig, routeFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadTradeRoutes() {
+        List<Map<String, Object>> routes = new ArrayList<>();
+        File routeFile = new File(plugin.getDataFolder(), "trade_routes.yml");
+        if (!routeFile.exists()) return routes;
+        FileConfiguration routeConfig = YamlConfiguration.loadConfiguration(routeFile);
+        if (routeConfig.contains("routes")) {
+            org.bukkit.configuration.ConfigurationSection routesSection = routeConfig.getConfigurationSection("routes");
+            if (routesSection != null) {
+                for (String routeId : routesSection.getKeys(false)) {
+                    String path = "routes." + routeId;
+                    Map<String, Object> route = new HashMap<>();
+                    route.put("routeId", routeConfig.getString(path + ".routeId"));
+                    route.put("kingdom1", routeConfig.getString(path + ".kingdom1"));
+                    route.put("kingdom2", routeConfig.getString(path + ".kingdom2"));
+                    route.put("world1", routeConfig.getString(path + ".world1"));
+                    route.put("x1", routeConfig.getDouble(path + ".x1"));
+                    route.put("y1", routeConfig.getDouble(path + ".y1"));
+                    route.put("z1", routeConfig.getDouble(path + ".z1"));
+                    route.put("world2", routeConfig.getString(path + ".world2"));
+                    route.put("x2", routeConfig.getDouble(path + ".x2"));
+                    route.put("y2", routeConfig.getDouble(path + ".y2"));
+                    route.put("z2", routeConfig.getDouble(path + ".z2"));
+                    route.put("establishedAt", routeConfig.getLong(path + ".establishedAt"));
+                    route.put("active", routeConfig.getBoolean(path + ".active"));
+                    route.put("tradeVolume", routeConfig.getDouble(path + ".tradeVolume"));
+                    route.put("tradeCount", routeConfig.getInt(path + ".tradeCount"));
+                    route.put("lastTradeTime", routeConfig.getLong(path + ".lastTradeTime"));
+                    routes.add(route);
+                }
+            }
+        }
+        return routes;
+    }
+
+    @Override
+    public void saveAdvancedChallenge(String challengeId, String name, String description, String type,
+                                     int difficulty, int xpReward, long startTime, long endTime,
+                                     int requiredMembers, String chainId, int chainOrder, boolean active) {
+        File challengeFile = new File(plugin.getDataFolder(), "advanced_challenges.yml");
+        FileConfiguration challengeConfig = YamlConfiguration.loadConfiguration(challengeFile);
+        String path = "challenges." + challengeId;
+        challengeConfig.set(path + ".challengeId", challengeId);
+        challengeConfig.set(path + ".name", name);
+        challengeConfig.set(path + ".description", description);
+        challengeConfig.set(path + ".type", type);
+        challengeConfig.set(path + ".difficulty", difficulty);
+        challengeConfig.set(path + ".xpReward", xpReward);
+        challengeConfig.set(path + ".startTime", startTime);
+        challengeConfig.set(path + ".endTime", endTime);
+        challengeConfig.set(path + ".requiredMembers", requiredMembers);
+        challengeConfig.set(path + ".chainId", chainId);
+        challengeConfig.set(path + ".chainOrder", chainOrder);
+        challengeConfig.set(path + ".active", active);
+        saveFile(challengeConfig, challengeFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadAdvancedChallenges() {
+        List<Map<String, Object>> challenges = new ArrayList<>();
+        File challengeFile = new File(plugin.getDataFolder(), "advanced_challenges.yml");
+        if (!challengeFile.exists()) return challenges;
+        FileConfiguration challengeConfig = YamlConfiguration.loadConfiguration(challengeFile);
+        if (challengeConfig.contains("challenges")) {
+            org.bukkit.configuration.ConfigurationSection challengesSection = challengeConfig.getConfigurationSection("challenges");
+            if (challengesSection != null) {
+                for (String challengeId : challengesSection.getKeys(false)) {
+                    String path = "challenges." + challengeId;
+                    Map<String, Object> challenge = new HashMap<>();
+                    challenge.put("challengeId", challengeConfig.getString(path + ".challengeId"));
+                    challenge.put("name", challengeConfig.getString(path + ".name"));
+                    challenge.put("description", challengeConfig.getString(path + ".description"));
+                    challenge.put("type", challengeConfig.getString(path + ".type"));
+                    challenge.put("difficulty", challengeConfig.getInt(path + ".difficulty"));
+                    challenge.put("xpReward", challengeConfig.getInt(path + ".xpReward"));
+                    challenge.put("startTime", challengeConfig.getLong(path + ".startTime"));
+                    challenge.put("endTime", challengeConfig.getLong(path + ".endTime"));
+                    challenge.put("requiredMembers", challengeConfig.getInt(path + ".requiredMembers"));
+                    challenge.put("chainId", challengeConfig.getString(path + ".chainId"));
+                    challenge.put("chainOrder", challengeConfig.getInt(path + ".chainOrder"));
+                    challenge.put("active", challengeConfig.getBoolean(path + ".active"));
+                    challenges.add(challenge);
+                }
+            }
+        }
+        return challenges;
+    }
+
+    @Override
+    public void saveKingdomStructure(String structureId, String kingdomName, String type,
+                                    String worldName, double x, double y, double z,
+                                    long builtAt, int level, boolean active) {
+        File structureFile = new File(plugin.getDataFolder(), "structures.yml");
+        FileConfiguration structureConfig = YamlConfiguration.loadConfiguration(structureFile);
+        String path = "structures." + structureId;
+        structureConfig.set(path + ".structureId", structureId);
+        structureConfig.set(path + ".kingdomName", kingdomName);
+        structureConfig.set(path + ".type", type);
+        structureConfig.set(path + ".worldName", worldName);
+        structureConfig.set(path + ".x", x);
+        structureConfig.set(path + ".y", y);
+        structureConfig.set(path + ".z", z);
+        structureConfig.set(path + ".builtAt", builtAt);
+        structureConfig.set(path + ".level", level);
+        structureConfig.set(path + ".active", active);
+        saveFile(structureConfig, structureFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomStructures() {
+        List<Map<String, Object>> structures = new ArrayList<>();
+        File structureFile = new File(plugin.getDataFolder(), "structures.yml");
+        if (!structureFile.exists()) return structures;
+        FileConfiguration structureConfig = YamlConfiguration.loadConfiguration(structureFile);
+        if (structureConfig.contains("structures")) {
+            org.bukkit.configuration.ConfigurationSection structuresSection = structureConfig.getConfigurationSection("structures");
+            if (structuresSection != null) {
+                for (String structureId : structuresSection.getKeys(false)) {
+                    String path = "structures." + structureId;
+                    Map<String, Object> structure = new HashMap<>();
+                    structure.put("structureId", structureConfig.getString(path + ".structureId"));
+                    structure.put("kingdomName", structureConfig.getString(path + ".kingdomName"));
+                    structure.put("type", structureConfig.getString(path + ".type"));
+                    structure.put("worldName", structureConfig.getString(path + ".worldName"));
+                    structure.put("x", structureConfig.getDouble(path + ".x"));
+                    structure.put("y", structureConfig.getDouble(path + ".y"));
+                    structure.put("z", structureConfig.getDouble(path + ".z"));
+                    structure.put("builtAt", structureConfig.getLong(path + ".builtAt"));
+                    structure.put("level", structureConfig.getInt(path + ".level"));
+                    structure.put("active", structureConfig.getBoolean(path + ".active"));
+                    structures.add(structure);
+                }
+            }
+        }
+        return structures;
+    }
+
+    @Override
+    public void saveKingdomResource(String kingdomName, String resourceType, int amount) {
+        File resourceFile = new File(plugin.getDataFolder(), "resources.yml");
+        FileConfiguration resourceConfig = YamlConfiguration.loadConfiguration(resourceFile);
+        String path = "resources." + kingdomName + "." + resourceType;
+        resourceConfig.set(path, amount);
+        saveFile(resourceConfig, resourceFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomResources() {
+        List<Map<String, Object>> resources = new ArrayList<>();
+        File resourceFile = new File(plugin.getDataFolder(), "resources.yml");
+        if (!resourceFile.exists()) return resources;
+        FileConfiguration resourceConfig = YamlConfiguration.loadConfiguration(resourceFile);
+        if (resourceConfig.contains("resources")) {
+            org.bukkit.configuration.ConfigurationSection resourcesSection = resourceConfig.getConfigurationSection("resources");
+            if (resourcesSection != null) {
+                for (String kingdomName : resourcesSection.getKeys(false)) {
+                    org.bukkit.configuration.ConfigurationSection kingdomSection = resourcesSection.getConfigurationSection(kingdomName);
+                    if (kingdomSection != null) {
+                        for (String resourceType : kingdomSection.getKeys(false)) {
+                            Map<String, Object> resource = new HashMap<>();
+                            resource.put("kingdomName", kingdomName);
+                            resource.put("resourceType", resourceType);
+                            resource.put("amount", resourceConfig.getInt("resources." + kingdomName + "." + resourceType));
+                            resources.add(resource);
+                        }
+                    }
+                }
+            }
+        }
+        return resources;
+    }
+
+    @Override
+    public void saveDiplomaticAgreement(String agreementId, String kingdom1, String kingdom2,
+                                       String type, long establishedAt, long expiresAt,
+                                       boolean active, String terms) {
+        File diplomacyFile = new File(plugin.getDataFolder(), "diplomacy.yml");
+        FileConfiguration diplomacyConfig = YamlConfiguration.loadConfiguration(diplomacyFile);
+        String path = "agreements." + agreementId;
+        diplomacyConfig.set(path + ".agreementId", agreementId);
+        diplomacyConfig.set(path + ".kingdom1", kingdom1);
+        diplomacyConfig.set(path + ".kingdom2", kingdom2);
+        diplomacyConfig.set(path + ".type", type);
+        diplomacyConfig.set(path + ".establishedAt", establishedAt);
+        diplomacyConfig.set(path + ".expiresAt", expiresAt);
+        diplomacyConfig.set(path + ".active", active);
+        diplomacyConfig.set(path + ".terms", terms);
+        saveFile(diplomacyConfig, diplomacyFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadDiplomaticAgreements() {
+        List<Map<String, Object>> agreements = new ArrayList<>();
+        File diplomacyFile = new File(plugin.getDataFolder(), "diplomacy.yml");
+        if (!diplomacyFile.exists()) return agreements;
+        FileConfiguration diplomacyConfig = YamlConfiguration.loadConfiguration(diplomacyFile);
+        if (diplomacyConfig.contains("agreements")) {
+            org.bukkit.configuration.ConfigurationSection agreementsSection = diplomacyConfig.getConfigurationSection("agreements");
+            if (agreementsSection != null) {
+                for (String agreementId : agreementsSection.getKeys(false)) {
+                    String path = "agreements." + agreementId;
+                    Map<String, Object> agreement = new HashMap<>();
+                    agreement.put("agreementId", diplomacyConfig.getString(path + ".agreementId"));
+                    agreement.put("kingdom1", diplomacyConfig.getString(path + ".kingdom1"));
+                    agreement.put("kingdom2", diplomacyConfig.getString(path + ".kingdom2"));
+                    agreement.put("type", diplomacyConfig.getString(path + ".type"));
+                    agreement.put("establishedAt", diplomacyConfig.getLong(path + ".establishedAt"));
+                    agreement.put("expiresAt", diplomacyConfig.getLong(path + ".expiresAt"));
+                    agreement.put("active", diplomacyConfig.getBoolean(path + ".active"));
+                    agreement.put("terms", diplomacyConfig.getString(path + ".terms"));
+                    agreements.add(agreement);
+                }
+            }
+        }
+        return agreements;
+    }
+
+    @Override
+    public void saveKingdomTheme(String kingdomName, String primaryColor, String secondaryColor,
+                                String accentColor, String bannerMaterial, String flagMaterial,
+                                String primaryParticle, String secondaryParticle, String themeName) {
+        File themeFile = new File(plugin.getDataFolder(), "themes.yml");
+        FileConfiguration themeConfig = YamlConfiguration.loadConfiguration(themeFile);
+        String path = "themes." + kingdomName;
+        themeConfig.set(path + ".kingdomName", kingdomName);
+        themeConfig.set(path + ".primaryColor", primaryColor);
+        themeConfig.set(path + ".secondaryColor", secondaryColor);
+        themeConfig.set(path + ".accentColor", accentColor);
+        themeConfig.set(path + ".bannerMaterial", bannerMaterial);
+        themeConfig.set(path + ".flagMaterial", flagMaterial);
+        themeConfig.set(path + ".primaryParticle", primaryParticle);
+        themeConfig.set(path + ".secondaryParticle", secondaryParticle);
+        themeConfig.set(path + ".themeName", themeName);
+        saveFile(themeConfig, themeFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomThemes() {
+        List<Map<String, Object>> themes = new ArrayList<>();
+        File themeFile = new File(plugin.getDataFolder(), "themes.yml");
+        if (!themeFile.exists()) return themes;
+        FileConfiguration themeConfig = YamlConfiguration.loadConfiguration(themeFile);
+        if (themeConfig.contains("themes")) {
+            org.bukkit.configuration.ConfigurationSection themesSection = themeConfig.getConfigurationSection("themes");
+            if (themesSection != null) {
+                for (String kingdomName : themesSection.getKeys(false)) {
+                    String path = "themes." + kingdomName;
+                    Map<String, Object> theme = new HashMap<>();
+                    theme.put("kingdomName", kingdomName);
+                    theme.put("primaryColor", themeConfig.getString(path + ".primaryColor"));
+                    theme.put("secondaryColor", themeConfig.getString(path + ".secondaryColor"));
+                    theme.put("accentColor", themeConfig.getString(path + ".accentColor"));
+                    theme.put("bannerMaterial", themeConfig.getString(path + ".bannerMaterial"));
+                    theme.put("flagMaterial", themeConfig.getString(path + ".flagMaterial"));
+                    theme.put("primaryParticle", themeConfig.getString(path + ".primaryParticle"));
+                    theme.put("secondaryParticle", themeConfig.getString(path + ".secondaryParticle"));
+                    theme.put("themeName", themeConfig.getString(path + ".themeName"));
+                    themes.add(theme);
+                }
+            }
+        }
+        return themes;
+    }
+
+    @Override
+    public void saveKingdomBanner(String bannerId, String kingdomName, String worldName,
+                                 double x, double y, double z, String bannerMaterial) {
+        File bannerFile = new File(plugin.getDataFolder(), "banners.yml");
+        FileConfiguration bannerConfig = YamlConfiguration.loadConfiguration(bannerFile);
+        String path = "banners." + bannerId;
+        bannerConfig.set(path + ".bannerId", bannerId);
+        bannerConfig.set(path + ".kingdomName", kingdomName);
+        bannerConfig.set(path + ".worldName", worldName);
+        bannerConfig.set(path + ".x", x);
+        bannerConfig.set(path + ".y", y);
+        bannerConfig.set(path + ".z", z);
+        bannerConfig.set(path + ".bannerMaterial", bannerMaterial);
+        saveFile(bannerConfig, bannerFile);
+    }
+
+    @Override
+    public void deleteKingdomBanner(String bannerId) {
+        File bannerFile = new File(plugin.getDataFolder(), "banners.yml");
+        if (!bannerFile.exists()) return;
+        FileConfiguration bannerConfig = YamlConfiguration.loadConfiguration(bannerFile);
+        bannerConfig.set("banners." + bannerId, null);
+        saveFile(bannerConfig, bannerFile);
+    }
+
+    @Override
+    public List<Map<String, Object>> loadKingdomBanners() {
+        List<Map<String, Object>> banners = new ArrayList<>();
+        File bannerFile = new File(plugin.getDataFolder(), "banners.yml");
+        if (!bannerFile.exists()) return banners;
+        FileConfiguration bannerConfig = YamlConfiguration.loadConfiguration(bannerFile);
+        if (bannerConfig.contains("banners")) {
+            org.bukkit.configuration.ConfigurationSection bannersSection = bannerConfig.getConfigurationSection("banners");
+            if (bannersSection != null) {
+                for (String bannerId : bannersSection.getKeys(false)) {
+                    String path = "banners." + bannerId;
+                    Map<String, Object> banner = new HashMap<>();
+                    banner.put("bannerId", bannerConfig.getString(path + ".bannerId"));
+                    banner.put("kingdomName", bannerConfig.getString(path + ".kingdomName"));
+                    banner.put("worldName", bannerConfig.getString(path + ".worldName"));
+                    banner.put("x", bannerConfig.getDouble(path + ".x"));
+                    banner.put("y", bannerConfig.getDouble(path + ".y"));
+                    banner.put("z", bannerConfig.getDouble(path + ".z"));
+                    banner.put("bannerMaterial", bannerConfig.getString(path + ".bannerMaterial"));
+                    banners.add(banner);
+                }
+            }
+        }
+        return banners;
     }
 
     @Override

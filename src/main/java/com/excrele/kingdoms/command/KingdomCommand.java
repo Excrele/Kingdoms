@@ -509,6 +509,11 @@ public class KingdomCommand implements CommandExecutor {
                 setspawnKingdom.addSpawn(setSpawnName, setspawnPlayer.getLocation());
                 if (setSpawnName.equals("main")) {
                     setspawnPlayer.sendMessage("§aKingdom spawn set!");
+                    // Create hologram at spawn
+                    if (plugin.getHologramManager() != null) {
+                        plugin.getHologramManager().createSpawnHologram(
+                            setspawnKingdom.getName(), setspawnPlayer.getLocation());
+                    }
                 } else {
                     setspawnPlayer.sendMessage("§aSpawn point '" + setSpawnName + "' set!");
                 }
@@ -709,6 +714,8 @@ public class KingdomCommand implements CommandExecutor {
                 
                 int totalContributions = statsKingdom.getMemberContributions().values().stream().mapToInt(Integer::intValue).sum();
                 statsPlayer.sendMessage("§7Total Contributions: §e" + totalContributions + " XP");
+                statsPlayer.sendMessage("");
+                statsPlayer.sendMessage("§7Use §e/" + label + " dashboard §7for detailed analytics GUI");
                 return true;
             }
             case "promote" -> {
@@ -980,63 +987,147 @@ public class KingdomCommand implements CommandExecutor {
                 }
                 return true;
             }
+            case "dashboard" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can open the dashboard!");
+                    return true;
+                }
+                Player dashPlayer = (Player) sender;
+                com.excrele.kingdoms.gui.StatisticsDashboardGUI.openDashboard(dashPlayer);
+                return true;
+            }
+            case "heatmap" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can view the heat map!");
+                    return true;
+                }
+                Player heatPlayer = (Player) sender;
+                com.excrele.kingdoms.gui.TerritoryHeatMapGUI.openHeatMap(heatPlayer);
+                return true;
+            }
             case "leaderboard", "lb" -> {
-                String lbType = args.length > 1 ? args[1].toLowerCase() : "level";
-                sender.sendMessage("§6=== Kingdom Leaderboard (" + lbType.toUpperCase() + ") ===");
-                
-                List<Kingdom> sortedKingdoms = new ArrayList<>(kingdomManager.getKingdoms().values());
-                
-                switch (lbType) {
-                    case "level" -> {
-                        sortedKingdoms.sort((a, b) -> {
-                            int levelCompare = Integer.compare(b.getLevel(), a.getLevel());
-                            if (levelCompare != 0) return levelCompare;
-                            return Integer.compare(b.getXp(), a.getXp());
-                        });
-                    }
-                    case "xp" -> {
-                        sortedKingdoms.sort((a, b) -> {
-                            int xpCompare = Integer.compare(b.getXp(), a.getXp());
-                            if (xpCompare != 0) return xpCompare;
-                            return Integer.compare(b.getLevel(), a.getLevel());
-                        });
-                    }
-                    case "members" -> {
-                        sortedKingdoms.sort((a, b) -> Integer.compare(
-                            b.getMembers().size() + 1, // +1 for king
-                            a.getMembers().size() + 1
-                        ));
-                    }
-                    case "challenges" -> {
-                        sortedKingdoms.sort((a, b) -> Integer.compare(
-                            b.getTotalChallengesCompleted(),
-                            a.getTotalChallengesCompleted()
-                        ));
-                    }
-                    default -> {
-                        sender.sendMessage("§cInvalid leaderboard type! Use: level, xp, members, or challenges");
+                // Enhanced leaderboard with seasonal support
+                if (args.length >= 2 && args[1].equalsIgnoreCase("seasonal")) {
+                    // Show seasonal leaderboard
+                    String lbType = args.length > 2 ? args[2].toLowerCase() : "level";
+                    com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType type = 
+                        getLeaderboardType(lbType);
+                    
+                    if (type == null) {
+                        sender.sendMessage("§cInvalid leaderboard type! Use: level, xp, members, challenges, contributions, streaks, health, growth");
                         return true;
                     }
-                }
-                
-                int rank = 1;
-                for (Kingdom k : sortedKingdoms) {
-                    if (rank > 10) break; // Show top 10
-                    String entry = "§7" + rank + ". §e" + k.getName();
-                    switch (lbType) {
-                        case "level" -> entry += " §7- Level §e" + k.getLevel() + " §7(§e" + k.getXp() + " XP§7)";
-                        case "xp" -> entry += " §7- §e" + k.getXp() + " XP §7(Level §e" + k.getLevel() + "§7)";
-                        case "members" -> entry += " §7- §e" + (k.getMembers().size() + 1) + " members";
-                        case "challenges" -> entry += " §7- §e" + k.getTotalChallengesCompleted() + " challenges";
+                    
+                    List<Map.Entry<String, Integer>> leaderboard = 
+                        plugin.getEnhancedLeaderboardManager().getLeaderboard(type, 10, true);
+                    
+                    sender.sendMessage("§6=== Seasonal Leaderboard (" + type.name() + ") ===");
+                    sender.sendMessage("§7Season: §e" + plugin.getEnhancedLeaderboardManager().getCurrentSeasonId());
+                    sender.sendMessage("§7Time Remaining: §e" + plugin.getEnhancedLeaderboardManager().getFormattedTimeRemaining());
+                    sender.sendMessage("");
+                    
+                    int rank = 1;
+                    for (Map.Entry<String, Integer> entry : leaderboard) {
+                        String entryText = "§7" + rank + ". §e" + entry.getKey() + " §7- §e" + entry.getValue();
+                        if (rank == 1) entryText = "§6" + entryText;
+                        else if (rank == 2) entryText = "§e" + entryText;
+                        else if (rank == 3) entryText = "§b" + entryText;
+                        sender.sendMessage(entryText);
+                        rank++;
                     }
-                    sender.sendMessage(entry);
-                    rank++;
+                    
+                    if (leaderboard.isEmpty()) {
+                        sender.sendMessage("§7No data available for this season!");
+                    }
+                    return true;
+                } else {
+                    // Regular leaderboard (backward compatible)
+                    String lbType = args.length > 1 ? args[1].toLowerCase() : "level";
+                    com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType type = 
+                        getLeaderboardType(lbType);
+                    
+                    if (type == null) {
+                        // Fallback to old system
+                        sender.sendMessage("§6=== Kingdom Leaderboard (" + lbType.toUpperCase() + ") ===");
+                        
+                        List<Kingdom> sortedKingdoms = new ArrayList<>(kingdomManager.getKingdoms().values());
+                        
+                        switch (lbType) {
+                            case "level" -> {
+                                sortedKingdoms.sort((a, b) -> {
+                                    int levelCompare = Integer.compare(b.getLevel(), a.getLevel());
+                                    if (levelCompare != 0) return levelCompare;
+                                    return Integer.compare(b.getXp(), a.getXp());
+                                });
+                            }
+                            case "xp" -> {
+                                sortedKingdoms.sort((a, b) -> {
+                                    int xpCompare = Integer.compare(b.getXp(), a.getXp());
+                                    if (xpCompare != 0) return xpCompare;
+                                    return Integer.compare(b.getLevel(), a.getLevel());
+                                });
+                            }
+                            case "members" -> {
+                                sortedKingdoms.sort((a, b) -> Integer.compare(
+                                    b.getMembers().size() + 1,
+                                    a.getMembers().size() + 1
+                                ));
+                            }
+                            case "challenges" -> {
+                                sortedKingdoms.sort((a, b) -> Integer.compare(
+                                    b.getTotalChallengesCompleted(),
+                                    a.getTotalChallengesCompleted()
+                                ));
+                            }
+                            default -> {
+                                sender.sendMessage("§cInvalid leaderboard type! Use: level, xp, members, or challenges");
+                                return true;
+                            }
+                        }
+                        
+                        int rank = 1;
+                        for (Kingdom k : sortedKingdoms) {
+                            if (rank > 10) break;
+                            String entry = "§7" + rank + ". §e" + k.getName();
+                            switch (lbType) {
+                                case "level" -> entry += " §7- Level §e" + k.getLevel() + " §7(§e" + k.getXp() + " XP§7)";
+                                case "xp" -> entry += " §7- §e" + k.getXp() + " XP §7(Level §e" + k.getLevel() + "§7)";
+                                case "members" -> entry += " §7- §e" + (k.getMembers().size() + 1) + " members";
+                                case "challenges" -> entry += " §7- §e" + k.getTotalChallengesCompleted() + " challenges";
+                            }
+                            sender.sendMessage(entry);
+                            rank++;
+                        }
+                        
+                        if (sortedKingdoms.isEmpty()) {
+                            sender.sendMessage("§7No kingdoms found!");
+                        }
+                        return true;
+                    }
+                    
+                    // Use enhanced leaderboard system
+                    List<Map.Entry<String, Integer>> leaderboard = 
+                        plugin.getEnhancedLeaderboardManager().getLeaderboard(type, 10, false);
+                    
+                    sender.sendMessage("§6=== Kingdom Leaderboard (" + type.name() + ") ===");
+                    
+                    int rank = 1;
+                    for (Map.Entry<String, Integer> entry : leaderboard) {
+                        String entryText = "§7" + rank + ". §e" + entry.getKey() + " §7- §e" + entry.getValue();
+                        if (rank == 1) entryText = "§6" + entryText;
+                        else if (rank == 2) entryText = "§e" + entryText;
+                        else if (rank == 3) entryText = "§b" + entryText;
+                        sender.sendMessage(entryText);
+                        rank++;
+                    }
+                    
+                    if (leaderboard.isEmpty()) {
+                        sender.sendMessage("§7No kingdoms found!");
+                    }
+                    sender.sendMessage("");
+                    sender.sendMessage("§7Use §e/" + label + " leaderboard seasonal <type> §7for seasonal leaderboards");
+                    return true;
                 }
-                
-                if (sortedKingdoms.isEmpty()) {
-                    sender.sendMessage("§7No kingdoms found!");
-                }
-                return true;
             }
             case "alliance" -> {
                 if (args.length < 2) {
@@ -2424,8 +2515,79 @@ public class KingdomCommand implements CommandExecutor {
                     activityPlayer.sendMessage("§7Last Login: §e" + (activity.getDaysSinceLastLogin() == 0 ? "Today" : activity.getDaysSinceLastLogin() + " days ago"));
                     activityPlayer.sendMessage("§7Total Playtime: §e" + (activity.getTotalPlaytime() / 3600) + " hours");
                     activityPlayer.sendMessage("§7Contributions: §e" + activity.getContributions());
+                    activityPlayer.sendMessage("§7Contribution Streak: §e" + activity.getContributionStreak() + " days");
                 } else {
                     activityPlayer.sendMessage("§cNo activity data found!");
+                }
+                return true;
+            }
+            case "achievements", "achievement" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can view achievements!");
+                    return true;
+                }
+                Player achPlayer = (Player) sender;
+                String achKingdomName = kingdomManager.getKingdomOfPlayer(achPlayer.getName());
+                if (achKingdomName == null) {
+                    achPlayer.sendMessage("You must be in a kingdom!");
+                    return true;
+                }
+                
+                if (args.length >= 2 && args[1].equalsIgnoreCase("list")) {
+                    // List all achievements
+                    java.util.List<com.excrele.kingdoms.model.MemberAchievement> achievements = 
+                        plugin.getAchievementManager().getPlayerAchievements(achKingdomName, achPlayer.getName());
+                    achPlayer.sendMessage("§6=== Your Achievements ===");
+                    if (achievements.isEmpty()) {
+                        achPlayer.sendMessage("§7No achievements unlocked yet!");
+                    } else {
+                        int completed = 0;
+                        for (com.excrele.kingdoms.model.MemberAchievement achievement : achievements) {
+                            if (achievement.isCompleted()) {
+                                completed++;
+                                achPlayer.sendMessage("§a✓ " + achievement.getAchievementName() + " §7- " + achievement.getDescription());
+                                achPlayer.sendMessage("§7  Unlocked: §e" + achievement.getFormattedTimeSince());
+                            } else {
+                                achPlayer.sendMessage("§7○ " + achievement.getAchievementName() + " §7- " + achievement.getDescription());
+                                if (achievement.getTarget() > 0) {
+                                    achPlayer.sendMessage("§7  Progress: §e" + achievement.getProgress() + "§7/§e" + achievement.getTarget());
+                                }
+                            }
+                        }
+                        achPlayer.sendMessage("§7Completed: §e" + completed + "§7/§e" + achievements.size());
+                    }
+                } else {
+                    achPlayer.sendMessage("§6=== Achievement Commands ===");
+                    achPlayer.sendMessage("§7/" + label + " achievements list §7- View your achievements");
+                }
+                return true;
+            }
+            case "streak" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can view streaks!");
+                    return true;
+                }
+                Player streakPlayer = (Player) sender;
+                String streakKingdomName = kingdomManager.getKingdomOfPlayer(streakPlayer.getName());
+                if (streakKingdomName == null) {
+                    streakPlayer.sendMessage("You must be in a kingdom!");
+                    return true;
+                }
+                
+                com.excrele.kingdoms.model.PlayerActivity activity = plugin.getActivityManager().getActivity(streakPlayer.getName());
+                if (activity != null) {
+                    int streak = activity.getContributionStreak();
+                    streakPlayer.sendMessage("§6=== Contribution Streak ===");
+                    streakPlayer.sendMessage("§7Current Streak: §e" + streak + " days");
+                    if (streak >= 7) {
+                        streakPlayer.sendMessage("§aGreat job maintaining your streak!");
+                    } else if (streak >= 3) {
+                        streakPlayer.sendMessage("§eKeep it up! You're building a good streak!");
+                    } else {
+                        streakPlayer.sendMessage("§7Contribute daily to build your streak!");
+                    }
+                } else {
+                    streakPlayer.sendMessage("§cNo activity data found!");
                 }
                 return true;
             }
@@ -2559,6 +2721,280 @@ public class KingdomCommand implements CommandExecutor {
                             eventPlayer.sendMessage("§aEvent deleted!");
                         } else {
                             eventPlayer.sendMessage("§cEvent not found!");
+                        }
+                        return true;
+                    }
+                    case "calendar", "cal" -> {
+                        int monthOffset = args.length > 2 ? parsePageNumber(args[2], 0) : 0;
+                        com.excrele.kingdoms.gui.EventCalendarGUI.openCalendar(eventPlayer, monthOffset);
+                        return true;
+                    }
+                }
+                return true;
+            }
+            case "structure", "structures" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can manage structures!");
+                    return true;
+                }
+                Player structPlayer = (Player) sender;
+                String structKingdomName = kingdomManager.getKingdomOfPlayer(structPlayer.getName());
+                if (structKingdomName == null) {
+                    structPlayer.sendMessage("§cYou must be in a kingdom!");
+                    return true;
+                }
+                
+                if (args.length < 2) {
+                    structPlayer.sendMessage("§6=== Kingdom Structures ===");
+                    structPlayer.sendMessage("§7/" + label + " structure list §7- List all structures");
+                    structPlayer.sendMessage("§7/" + label + " structure build <type> §7- Build a structure");
+                    structPlayer.sendMessage("§7/" + label + " structure upgrade <id> §7- Upgrade a structure");
+                    structPlayer.sendMessage("§7/" + label + " structure destroy <id> §7- Destroy a structure");
+                    structPlayer.sendMessage("§7Types: THRONE, WAR_ROOM, TREASURY, EMBASSY, GRANARY, BARRACKS");
+                    return true;
+                }
+                
+                String structSub = args[1].toLowerCase();
+                switch (structSub) {
+                    case "list" -> {
+                        java.util.List<com.excrele.kingdoms.model.KingdomStructure> structures = 
+                            plugin.getStructureManager().getKingdomStructures(structKingdomName);
+                        structPlayer.sendMessage("§6=== Your Structures ===");
+                        if (structures.isEmpty()) {
+                            structPlayer.sendMessage("§7No structures built yet.");
+                        } else {
+                            for (com.excrele.kingdoms.model.KingdomStructure structure : structures) {
+                                if (structure.isActive()) {
+                                    structPlayer.sendMessage("§e" + structure.getType().name() + 
+                                        " §7- Level §e" + structure.getLevel() + 
+                                        " §7at (" + (int)structure.getX() + ", " + (int)structure.getY() + ", " + (int)structure.getZ() + ")");
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    case "build" -> {
+                        if (args.length < 3) {
+                            structPlayer.sendMessage("Usage: /" + label + " structure build <type>");
+                            return true;
+                        }
+                        try {
+                            com.excrele.kingdoms.model.KingdomStructure.StructureType type = 
+                                com.excrele.kingdoms.model.KingdomStructure.StructureType.valueOf(args[2].toUpperCase());
+                            org.bukkit.Location location = structPlayer.getLocation();
+                            if (plugin.getStructureManager().buildStructure(structKingdomName, type, location, structPlayer)) {
+                                structPlayer.sendMessage("§aStructure built!");
+                            } else {
+                                structPlayer.sendMessage("§cFailed to build structure! Check permissions and location.");
+                            }
+                        } catch (IllegalArgumentException e) {
+                            structPlayer.sendMessage("§cInvalid structure type!");
+                        }
+                        return true;
+                    }
+                    case "upgrade" -> {
+                        if (args.length < 3) {
+                            structPlayer.sendMessage("Usage: /" + label + " structure upgrade <id>");
+                            return true;
+                        }
+                        if (plugin.getStructureManager().upgradeStructure(structKingdomName, args[2], structPlayer)) {
+                            structPlayer.sendMessage("§aStructure upgraded!");
+                        } else {
+                            structPlayer.sendMessage("§cFailed to upgrade structure!");
+                        }
+                        return true;
+                    }
+                    case "destroy" -> {
+                        if (args.length < 3) {
+                            structPlayer.sendMessage("Usage: /" + label + " structure destroy <id>");
+                            return true;
+                        }
+                        if (plugin.getStructureManager().destroyStructure(structKingdomName, args[2], structPlayer)) {
+                            structPlayer.sendMessage("§aStructure destroyed!");
+                        } else {
+                            structPlayer.sendMessage("§cFailed to destroy structure!");
+                        }
+                        return true;
+                    }
+                }
+                return true;
+            }
+            case "resource", "resources" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can manage resources!");
+                    return true;
+                }
+                Player resPlayer = (Player) sender;
+                String resKingdomName = kingdomManager.getKingdomOfPlayer(resPlayer.getName());
+                if (resKingdomName == null) {
+                    resPlayer.sendMessage("§cYou must be in a kingdom!");
+                    return true;
+                }
+                
+                if (args.length < 2) {
+                    resPlayer.sendMessage("§6=== Kingdom Resources ===");
+                    resPlayer.sendMessage("§7/" + label + " resource list §7- List all resources");
+                    resPlayer.sendMessage("§7/" + label + " resource deposit <material> <amount> §7- Deposit resources");
+                    resPlayer.sendMessage("§7/" + label + " resource withdraw <material> <amount> §7- Withdraw resources");
+                    resPlayer.sendMessage("§7/" + label + " resource trade <kingdom> <material> <amount> <price> §7- Trade resources");
+                    return true;
+                }
+                
+                String resSub = args[1].toLowerCase();
+                switch (resSub) {
+                    case "list" -> {
+                        java.util.Map<String, Integer> resources = 
+                            plugin.getResourceManager().getKingdomResources(resKingdomName);
+                        resPlayer.sendMessage("§6=== Your Resources ===");
+                        resPlayer.sendMessage("§7Storage: §e" + plugin.getResourceManager().getTotalResources(resKingdomName) + 
+                            "§7/§e" + plugin.getResourceManager().getStorageCapacity(resKingdomName));
+                        if (resources.isEmpty()) {
+                            resPlayer.sendMessage("§7No resources stored.");
+                        } else {
+                            for (java.util.Map.Entry<String, Integer> entry : resources.entrySet()) {
+                                resPlayer.sendMessage("§e" + entry.getKey() + " §7- §e" + entry.getValue());
+                            }
+                        }
+                        return true;
+                    }
+                    case "deposit" -> {
+                        if (args.length < 4) {
+                            resPlayer.sendMessage("Usage: /" + label + " resource deposit <material> <amount>");
+                            return true;
+                        }
+                        try {
+                            org.bukkit.Material material = org.bukkit.Material.valueOf(args[2].toUpperCase());
+                            int amount = Integer.parseInt(args[3]);
+                            if (plugin.getResourceManager().depositResource(resKingdomName, material, amount, resPlayer)) {
+                                resPlayer.sendMessage("§aResources deposited!");
+                            } else {
+                                resPlayer.sendMessage("§cFailed to deposit! Check inventory and storage capacity.");
+                            }
+                        } catch (IllegalArgumentException e) {
+                            resPlayer.sendMessage("§cInvalid material or amount!");
+                        }
+                        return true;
+                    }
+                    case "withdraw" -> {
+                        if (args.length < 4) {
+                            resPlayer.sendMessage("Usage: /" + label + " resource withdraw <material> <amount>");
+                            return true;
+                        }
+                        try {
+                            org.bukkit.Material material = org.bukkit.Material.valueOf(args[2].toUpperCase());
+                            int amount = Integer.parseInt(args[3]);
+                            if (plugin.getResourceManager().withdrawResource(resKingdomName, material, amount, resPlayer)) {
+                                resPlayer.sendMessage("§aResources withdrawn!");
+                            } else {
+                                resPlayer.sendMessage("§cFailed to withdraw! Not enough resources.");
+                            }
+                        } catch (IllegalArgumentException e) {
+                            resPlayer.sendMessage("§cInvalid material or amount!");
+                        }
+                        return true;
+                    }
+                    case "trade" -> {
+                        if (args.length < 6) {
+                            resPlayer.sendMessage("Usage: /" + label + " resource trade <kingdom> <material> <amount> <price>");
+                            return true;
+                        }
+                        try {
+                            String targetKingdom = args[2];
+                            org.bukkit.Material material = org.bukkit.Material.valueOf(args[3].toUpperCase());
+                            int amount = Integer.parseInt(args[4]);
+                            double price = Double.parseDouble(args[5]);
+                            if (plugin.getResourceManager().tradeResources(resKingdomName, targetKingdom, material, amount, price)) {
+                                resPlayer.sendMessage("§aTrade completed!");
+                            } else {
+                                resPlayer.sendMessage("§cTrade failed! Check resources, money, and trade route.");
+                            }
+                        } catch (IllegalArgumentException e) {
+                            resPlayer.sendMessage("§cInvalid parameters!");
+                        }
+                        return true;
+                    }
+                }
+                return true;
+            }
+            case "diplomacy", "diplomatic" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can manage diplomacy!");
+                    return true;
+                }
+                Player dipPlayer = (Player) sender;
+                String dipKingdomName = kingdomManager.getKingdomOfPlayer(dipPlayer.getName());
+                if (dipKingdomName == null) {
+                    dipPlayer.sendMessage("§cYou must be in a kingdom!");
+                    return true;
+                }
+                
+                if (args.length < 2) {
+                    dipPlayer.sendMessage("§6=== Diplomacy ===");
+                    dipPlayer.sendMessage("§7/" + label + " diplomacy list §7- List all agreements");
+                    dipPlayer.sendMessage("§7/" + label + " diplomacy propose <kingdom> <type> [duration] §7- Propose agreement");
+                    dipPlayer.sendMessage("§7/" + label + " diplomacy accept <id> §7- Accept agreement");
+                    dipPlayer.sendMessage("§7/" + label + " diplomacy terminate <id> §7- Terminate agreement");
+                    dipPlayer.sendMessage("§7Types: NON_AGGRESSION_PACT, TRADE_AGREEMENT, EMBASSY, MUTUAL_DEFENSE");
+                    return true;
+                }
+                
+                String dipSub = args[1].toLowerCase();
+                switch (dipSub) {
+                    case "list" -> {
+                        java.util.List<com.excrele.kingdoms.model.DiplomaticAgreement> agreements = 
+                            plugin.getDiplomacyManager().getKingdomAgreements(dipKingdomName);
+                        dipPlayer.sendMessage("§6=== Your Agreements ===");
+                        if (agreements.isEmpty()) {
+                            dipPlayer.sendMessage("§7No active agreements.");
+                        } else {
+                            for (com.excrele.kingdoms.model.DiplomaticAgreement agreement : agreements) {
+                                String otherKingdom = agreement.getOtherKingdom(dipKingdomName);
+                                dipPlayer.sendMessage("§e" + agreement.getType().name() + " §7with §e" + otherKingdom);
+                            }
+                        }
+                        return true;
+                    }
+                    case "propose" -> {
+                        if (args.length < 4) {
+                            dipPlayer.sendMessage("Usage: /" + label + " diplomacy propose <kingdom> <type> [duration_seconds]");
+                            return true;
+                        }
+                        try {
+                            String targetKingdom = args[2];
+                            com.excrele.kingdoms.model.DiplomaticAgreement.AgreementType type = 
+                                com.excrele.kingdoms.model.DiplomaticAgreement.AgreementType.valueOf(args[3].toUpperCase());
+                            long duration = args.length > 4 ? Long.parseLong(args[4]) : -1; // -1 for permanent
+                            if (plugin.getDiplomacyManager().proposeAgreement(dipKingdomName, targetKingdom, type, duration, dipPlayer)) {
+                                dipPlayer.sendMessage("§aAgreement proposed!");
+                            } else {
+                                dipPlayer.sendMessage("§cFailed to propose agreement!");
+                            }
+                        } catch (IllegalArgumentException e) {
+                            dipPlayer.sendMessage("§cInvalid agreement type!");
+                        }
+                        return true;
+                    }
+                    case "accept" -> {
+                        if (args.length < 3) {
+                            dipPlayer.sendMessage("Usage: /" + label + " diplomacy accept <id>");
+                            return true;
+                        }
+                        if (plugin.getDiplomacyManager().acceptAgreement(dipKingdomName, args[2], dipPlayer)) {
+                            dipPlayer.sendMessage("§aAgreement accepted!");
+                        } else {
+                            dipPlayer.sendMessage("§cFailed to accept agreement!");
+                        }
+                        return true;
+                    }
+                    case "terminate" -> {
+                        if (args.length < 3) {
+                            dipPlayer.sendMessage("Usage: /" + label + " diplomacy terminate <id>");
+                            return true;
+                        }
+                        if (plugin.getDiplomacyManager().terminateAgreement(dipKingdomName, args[2], dipPlayer)) {
+                            dipPlayer.sendMessage("§aAgreement terminated!");
+                        } else {
+                            dipPlayer.sendMessage("§cFailed to terminate agreement!");
                         }
                         return true;
                     }
@@ -2718,8 +3154,302 @@ public class KingdomCommand implements CommandExecutor {
                 }
                 return true;
             }
+            case "mail" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can use mail!");
+                    return true;
+                }
+                Player mailPlayer = (Player) sender;
+                String mailKingdomName = kingdomManager.getKingdomOfPlayer(mailPlayer.getName());
+                if (mailKingdomName == null) {
+                    mailPlayer.sendMessage("§cYou must be in a kingdom to use mail!");
+                    return true;
+                }
+                
+                if (args.length < 2) {
+                    mailPlayer.sendMessage("§6=== Kingdom Mail ===");
+                    mailPlayer.sendMessage("§7/" + label + " mail inbox §7- View your inbox");
+                    mailPlayer.sendMessage("§7/" + label + " mail send <player> <subject> <message> §7- Send mail");
+                    mailPlayer.sendMessage("§7/" + label + " mail broadcast <subject> <message> §7- Send to all members (King/Advisor)");
+                    mailPlayer.sendMessage("§7/" + label + " mail read <id> §7- Read a specific mail");
+                    mailPlayer.sendMessage("§7/" + label + " mail delete <id> §7- Delete a mail");
+                    mailPlayer.sendMessage("§7/" + label + " mail markall §7- Mark all as read");
+                    mailPlayer.sendMessage("§7/" + label + " mail clear §7- Delete all read mail");
+                    int unreadCount = plugin.getMailManager().getUnreadCount(mailPlayer.getName());
+                    if (unreadCount > 0) {
+                        mailPlayer.sendMessage("");
+                        mailPlayer.sendMessage("§eYou have §e" + unreadCount + " §eunread message(s)! Use §e/" + label + " mail inbox §eto view");
+                    }
+                    return true;
+                }
+                
+                String mailSub = args[1].toLowerCase();
+                switch (mailSub) {
+                    case "inbox", "list" -> {
+                        int page = args.length > 2 ? parsePageNumber(args[2], 1) : 1;
+                        com.excrele.kingdoms.gui.MailGUI.openInbox(mailPlayer, page);
+                        return true;
+                    }
+                    case "send" -> {
+                        if (args.length < 5) {
+                            mailPlayer.sendMessage("Usage: /" + label + " mail send <player> <subject> <message>");
+                            mailPlayer.sendMessage("§7Example: /" + label + " mail send PlayerName Meeting Tomorrow we have a meeting");
+                            return true;
+                        }
+                        String recipient = args[2];
+                        String subject = args[3];
+                        String message = String.join(" ", java.util.Arrays.copyOfRange(args, 4, args.length));
+                        
+                        if (plugin.getMailManager().sendMail(mailPlayer.getName(), recipient, subject, message)) {
+                            mailPlayer.sendMessage("§aMail sent to " + recipient + "!");
+                        } else {
+                            mailPlayer.sendMessage("§cFailed to send mail! Make sure the recipient is in your kingdom.");
+                        }
+                        return true;
+                    }
+                    case "broadcast" -> {
+                        if (args.length < 4) {
+                            mailPlayer.sendMessage("Usage: /" + label + " mail broadcast <subject> <message>");
+                            mailPlayer.sendMessage("§7Sends mail to all kingdom members (King/Advisor only)");
+                            return true;
+                        }
+                        String broadcastSubject = args[2];
+                        String broadcastMessage = String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length));
+                        
+                        if (plugin.getMailManager().sendMailToKingdom(mailPlayer.getName(), mailKingdomName, broadcastSubject, broadcastMessage)) {
+                            mailPlayer.sendMessage("§aMail broadcasted to all kingdom members!");
+                        } else {
+                            mailPlayer.sendMessage("§cFailed to broadcast mail! You must be King or Advisor.");
+                        }
+                        return true;
+                    }
+                    case "read" -> {
+                        if (args.length < 3) {
+                            mailPlayer.sendMessage("Usage: /" + label + " mail read <id>");
+                            mailPlayer.sendMessage("§7Or use §e/" + label + " mail inbox §7to view in GUI");
+                            return true;
+                        }
+                        String mailId = args[2];
+                        com.excrele.kingdoms.model.Mail mail = plugin.getMailManager().getMail(mailPlayer.getName(), mailId);
+                        if (mail == null) {
+                            mailPlayer.sendMessage("§cMail not found!");
+                            return true;
+                        }
+                        
+                        // Mark as read
+                        plugin.getMailManager().markAsRead(mailPlayer.getName(), mailId);
+                        
+                        // Display mail
+                        mailPlayer.sendMessage("§6=== Mail ===");
+                        mailPlayer.sendMessage("§7From: §e" + mail.getSender());
+                        mailPlayer.sendMessage("§7Subject: §e" + mail.getSubject());
+                        mailPlayer.sendMessage("§7Sent: §e" + mail.getFormattedTimeSince());
+                        mailPlayer.sendMessage("§7Message:");
+                        mailPlayer.sendMessage("§f" + mail.getMessage());
+                        return true;
+                    }
+                    case "delete" -> {
+                        if (args.length < 3) {
+                            mailPlayer.sendMessage("Usage: /" + label + " mail delete <id>");
+                            return true;
+                        }
+                        String deleteId = args[2];
+                        if (plugin.getMailManager().deleteMail(mailPlayer.getName(), deleteId)) {
+                            mailPlayer.sendMessage("§aMail deleted!");
+                        } else {
+                            mailPlayer.sendMessage("§cMail not found!");
+                        }
+                        return true;
+                    }
+                    case "markall", "markallread" -> {
+                        int count = plugin.getMailManager().markAllAsRead(mailPlayer.getName());
+                        mailPlayer.sendMessage("§aMarked §e" + count + " §amail(s) as read!");
+                        return true;
+                    }
+                    case "clear", "clearread" -> {
+                        int deleted = plugin.getMailManager().deleteAllRead(mailPlayer.getName());
+                        mailPlayer.sendMessage("§aDeleted §e" + deleted + " §aread mail(s)!");
+                        return true;
+                    }
+                    default -> {
+                        mailPlayer.sendMessage("§cUnknown mail subcommand! Use §e/" + label + " mail §7for help");
+                        return true;
+                    }
+                }
+            }
+            case "theme", "color" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can manage themes!");
+                    return true;
+                }
+                Player themePlayer = (Player) sender;
+                String themeKingdomName = kingdomManager.getKingdomOfPlayer(themePlayer.getName());
+                if (themeKingdomName == null) {
+                    themePlayer.sendMessage("§cYou must be in a kingdom!");
+                    return true;
+                }
+                
+                if (args.length < 2) {
+                    themePlayer.sendMessage("§6=== Kingdom Theme ===");
+                    themePlayer.sendMessage("§7/" + label + " theme view §7- View current theme");
+                    themePlayer.sendMessage("§7/" + label + " theme preset <name> §7- Apply preset theme");
+                    themePlayer.sendMessage("§7/" + label + " theme colors <primary> <secondary> <accent> §7- Set colors");
+                    themePlayer.sendMessage("§7/" + label + " theme particles <primary> <secondary> §7- Set particles");
+                    themePlayer.sendMessage("§7Presets: royal, warrior, nature, mystic, ocean");
+                    return true;
+                }
+                
+                String themeSub = args[1].toLowerCase();
+                switch (themeSub) {
+                    case "view" -> {
+                        com.excrele.kingdoms.model.KingdomTheme theme = 
+                            plugin.getThemeManager().getTheme(themeKingdomName);
+                        themePlayer.sendMessage("§6=== Your Theme ===");
+                        themePlayer.sendMessage("§7Theme: §e" + theme.getThemeName());
+                        themePlayer.sendMessage("§7Primary: " + theme.getPrimaryColor() + "█");
+                        themePlayer.sendMessage("§7Secondary: " + theme.getSecondaryColor() + "█");
+                        themePlayer.sendMessage("§7Accent: " + theme.getAccentColor() + "█");
+                        return true;
+                    }
+                    case "preset" -> {
+                        if (args.length < 3) {
+                            themePlayer.sendMessage("Usage: /" + label + " theme preset <name>");
+                            return true;
+                        }
+                        if (plugin.getThemeManager().applyPresetTheme(themeKingdomName, args[2])) {
+                            themePlayer.sendMessage("§aTheme applied!");
+                        } else {
+                            themePlayer.sendMessage("§cInvalid preset name!");
+                        }
+                        return true;
+                    }
+                    case "colors" -> {
+                        if (args.length < 5) {
+                            themePlayer.sendMessage("Usage: /" + label + " theme colors <primary> <secondary> <accent>");
+                            return true;
+                        }
+                        try {
+                            org.bukkit.ChatColor primary = org.bukkit.ChatColor.valueOf(args[2].toUpperCase());
+                            org.bukkit.ChatColor secondary = org.bukkit.ChatColor.valueOf(args[3].toUpperCase());
+                            org.bukkit.ChatColor accent = org.bukkit.ChatColor.valueOf(args[4].toUpperCase());
+                            if (plugin.getThemeManager().updateThemeColors(themeKingdomName, primary, secondary, accent)) {
+                                themePlayer.sendMessage("§aColors updated!");
+                            } else {
+                                themePlayer.sendMessage("§cFailed to update colors!");
+                            }
+                        } catch (IllegalArgumentException e) {
+                            themePlayer.sendMessage("§cInvalid color! Use: BLACK, DARK_BLUE, DARK_GREEN, etc.");
+                        }
+                        return true;
+                    }
+                }
+                return true;
+            }
+            case "banner", "banners" -> {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can manage banners!");
+                    return true;
+                }
+                Player bannerPlayer = (Player) sender;
+                String bannerKingdomName = kingdomManager.getKingdomOfPlayer(bannerPlayer.getName());
+                if (bannerKingdomName == null) {
+                    bannerPlayer.sendMessage("§cYou must be in a kingdom!");
+                    return true;
+                }
+                
+                if (args.length < 2) {
+                    bannerPlayer.sendMessage("§6=== Kingdom Banners ===");
+                    bannerPlayer.sendMessage("§7/" + label + " banner list §7- List all banners");
+                    bannerPlayer.sendMessage("§7/" + label + " banner place <material> §7- Place a banner");
+                    bannerPlayer.sendMessage("§7/" + label + " banner remove <id> §7- Remove a banner");
+                    return true;
+                }
+                
+                String bannerSub = args[1].toLowerCase();
+                switch (bannerSub) {
+                    case "list" -> {
+                        java.util.List<com.excrele.kingdoms.model.KingdomBanner> banners = 
+                            plugin.getBannerManager().getKingdomBanners(bannerKingdomName);
+                        bannerPlayer.sendMessage("§6=== Your Banners ===");
+                        if (banners.isEmpty()) {
+                            bannerPlayer.sendMessage("§7No banners placed yet.");
+                        } else {
+                            for (com.excrele.kingdoms.model.KingdomBanner banner : banners) {
+                                bannerPlayer.sendMessage("§e" + banner.getBannerId().substring(0, 8) + 
+                                    " §7- " + banner.getBannerMaterial().name() + 
+                                    " §7at (" + (int)banner.getX() + ", " + (int)banner.getY() + ", " + (int)banner.getZ() + ")");
+                            }
+                        }
+                        return true;
+                    }
+                    case "place" -> {
+                        if (args.length < 3) {
+                            bannerPlayer.sendMessage("Usage: /" + label + " banner place <material>");
+                            return true;
+                        }
+                        try {
+                            org.bukkit.Material material = org.bukkit.Material.valueOf(args[2].toUpperCase());
+                            if (!material.name().contains("BANNER")) {
+                                bannerPlayer.sendMessage("§cMaterial must be a banner type!");
+                                return true;
+                            }
+                            org.bukkit.Location location = bannerPlayer.getLocation();
+                            if (plugin.getBannerManager().placeBanner(bannerKingdomName, location, material, bannerPlayer)) {
+                                bannerPlayer.sendMessage("§aBanner placed!");
+                            } else {
+                                bannerPlayer.sendMessage("§cFailed to place banner!");
+                            }
+                        } catch (IllegalArgumentException e) {
+                            bannerPlayer.sendMessage("§cInvalid material!");
+                        }
+                        return true;
+                    }
+                    case "remove" -> {
+                        if (args.length < 3) {
+                            bannerPlayer.sendMessage("Usage: /" + label + " banner remove <id>");
+                            return true;
+                        }
+                        if (plugin.getBannerManager().removeBanner(bannerKingdomName, args[2], bannerPlayer)) {
+                            bannerPlayer.sendMessage("§aBanner removed!");
+                        } else {
+                            bannerPlayer.sendMessage("§cFailed to remove banner!");
+                        }
+                        return true;
+                    }
+                }
+                return true;
+            }
             default -> sender.sendMessage("Unknown subcommand! Use §e/kingdom help §7for a list of commands.");
         }
         return true;
+    }
+    
+    /**
+     * Convert string to LeaderboardType
+     */
+    private com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType getLeaderboardType(String type) {
+        return switch (type.toLowerCase()) {
+            case "level" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.LEVEL;
+            case "xp" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.XP;
+            case "members" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.MEMBERS;
+            case "challenges" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.CHALLENGES;
+            case "contributions" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.CONTRIBUTIONS;
+            case "streaks" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.STREAKS;
+            case "health" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.HEALTH;
+            case "growth" -> com.excrele.kingdoms.manager.EnhancedLeaderboardManager.LeaderboardType.GROWTH;
+            default -> null;
+        };
+    }
+    
+    /**
+     * Parse page number from string with default value
+     */
+    private int parsePageNumber(String str, int defaultValue) {
+        try {
+            int page = Integer.parseInt(str);
+            return page > 0 ? page : defaultValue;
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 }

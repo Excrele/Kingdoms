@@ -182,9 +182,22 @@ public class ChallengeManager {
         Kingdom kingdom = KingdomsPlugin.getInstance().getKingdomManager().getKingdom(kingdomName);
         if (kingdom == null) return;
         int xpReward = challenge.getXpReward();
+        
+        // Apply structure bonuses (throne increases XP gain)
+        if (KingdomsPlugin.getInstance().getStructureManager() != null) {
+            double throneBonus = KingdomsPlugin.getInstance().getStructureManager()
+                .getStructureBonus(kingdomName, com.excrele.kingdoms.model.KingdomStructure.StructureType.THRONE);
+            xpReward = (int) (xpReward * throneBonus);
+        }
+        
         kingdom.addXp(xpReward);
         kingdom.addContribution(player.getName(), xpReward); // Track individual contribution
         kingdom.incrementChallengesCompleted(); // Track total challenges
+        
+        // Record contribution for activity tracking and achievements
+        if (KingdomsPlugin.getInstance().getActivityManager() != null) {
+            KingdomsPlugin.getInstance().getActivityManager().recordContribution(player.getName());
+        }
         PlayerChallengeData data = getPlayerChallengeData(player, challenge);
         if (data == null) {
             data = new PlayerChallengeData();

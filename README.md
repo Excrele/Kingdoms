@@ -244,5 +244,41 @@ API Version: Tested with Spigot 1.21+. Ensure compatibility with your server ver
 Role System: The role-based permission system allows for flexible kingdom management and delegation of responsibilities.
 Alliances: Allied kingdoms can build in each other's territory and are shown on claim maps for easy identification.
 
-Support
-For issues or feature requests, contact the developer or open an issue on the plugin’s repository (if hosted).
+## Documentation
+
+Comprehensive documentation is available in the `docs/` folder:
+
+### Core Systems
+- [Kingdom Management](docs/01-kingdom-management.md) - Creating and managing kingdoms
+- [Land Claiming](docs/02-land-claiming.md) - Claiming and protecting territory
+- [Role & Permissions](docs/03-roles-permissions.md) - Role-based permission system
+- [Alliances](docs/04-alliances.md) - Forming and managing alliances
+- [Economy System](docs/05-economy.md) - Banking, trading, and economy features
+- [Flag System](docs/06-flags.md) - Kingdom and plot flags
+- [World Management](docs/07-world-management.md) - Multi-world support
+
+### Advanced Features
+- [Trust System](docs/08-trust.md) - Granting permissions to non-members
+- [Diplomacy System](docs/09-diplomacy.md) - Diplomatic agreements
+- [War System](docs/10-war-system.md) - Wars, sieges, and raids
+- [Resource Management](docs/11-resources.md) - Kingdom resource storage
+- [Tax System](docs/12-tax-system.md) - Automatic tax collection
+- [Trade Routes](docs/13-trade-routes.md) - Inter-kingdom trading
+- [Structures](docs/14-structures.md) - Special buildings with bonuses
+- [Challenge System](docs/15-challenges.md) - Configurable challenges
+- [Progression System](docs/16-progression.md) - XP, levels, and perks
+- [Social Features](docs/17-social.md) - Mail, achievements, activity tracking
+- [Perks System](docs/18-perks.md) - Automatic beneficial effects
+- [Activity Tracking](docs/19-activity.md) - Member activity monitoring
+
+### Technical Systems
+- [Performance & Caching](docs/20-performance.md) - Optimization and caching
+- [Storage Systems](docs/21-storage.md) - YAML, MySQL, SQLite storage
+- [GUI System](docs/22-guis.md) - Interactive user interfaces
+- [Visual Effects](docs/23-visual-effects.md) - Particles, holograms, themes
+- [Integrations](docs/24-integrations.md) - Plugin integrations
+- [Commands Reference](docs/25-commands.md) - Complete command list
+
+## Support
+
+For issues or feature requests, contact the developer or open an issue on the plugin's repository (if hosted).

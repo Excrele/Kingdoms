@@ -25,7 +25,37 @@ public class BankManager {
     }
 
     public double getBalance(String kingdomName) {
-        return bankBalances.getOrDefault(kingdomName, 0.0);
+        // Try cache first
+        if (plugin.getDataCache() != null) {
+            Double cached = plugin.getDataCache().getCachedBankBalance(kingdomName);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        
+        double balance = bankBalances.getOrDefault(kingdomName, 0.0);
+        
+        // Cache the result
+        if (plugin.getDataCache() != null) {
+            plugin.getDataCache().cacheBankBalance(kingdomName, balance);
+        }
+        
+        return balance;
+    }
+    
+    /**
+     * Get maximum bank capacity (with treasury structure bonus)
+     */
+    public double getMaxCapacity(String kingdomName) {
+        double baseCapacity = plugin.getConfig().getDouble("bank.max-capacity", 1000000.0);
+        
+        if (plugin.getStructureManager() != null) {
+            double treasuryBonus = plugin.getStructureManager()
+                .getStructureBonus(kingdomName, com.excrele.kingdoms.model.KingdomStructure.StructureType.TREASURY);
+            return baseCapacity * treasuryBonus;
+        }
+        
+        return baseCapacity;
     }
 
     public boolean deposit(String kingdomName, double amount) {
@@ -33,6 +63,12 @@ public class BankManager {
         double current = getBalance(kingdomName);
         double newBalance = current + amount;
         bankBalances.put(kingdomName, newBalance);
+        
+        // Update cache
+        if (plugin.getDataCache() != null) {
+            plugin.getDataCache().cacheBankBalance(kingdomName, newBalance);
+        }
+        
         plugin.getStorageManager().getAdapter().saveBankBalance(kingdomName, newBalance);
         return true;
     }
@@ -43,6 +79,12 @@ public class BankManager {
         if (current < amount) return false;
         double newBalance = current - amount;
         bankBalances.put(kingdomName, newBalance);
+        
+        // Update cache
+        if (plugin.getDataCache() != null) {
+            plugin.getDataCache().cacheBankBalance(kingdomName, newBalance);
+        }
+        
         plugin.getStorageManager().getAdapter().saveBankBalance(kingdomName, newBalance);
         return true;
     }
